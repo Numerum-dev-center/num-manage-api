@@ -1,0 +1,22 @@
+{
+  "name": "num-manage",
+  "private": true,
+  "packageManager": "pnpm@10.33.2",
+  "engines": {
+    "node": ">=18",
+    "pnpm": ">=9"
+  },
+  "workspaces": [
+    "num-manage-api",
+    "num-manage-web"
+  ],
+  "scripts": {
+    "install": "pnpm install",
+    "start:api": "pnpm --filter num-manage-api start:dev",
+    "start:web": "pnpm --filter num-manage-web dev",
+    "build:api": "pnpm --filter num-manage-api build",
+    "build:web": "pnpm --filter num-manage-web build",
+    "lint": "pnpm --filter num-manage-api lint && pnpm --filter num-manage-web lint",
+    "test:api": "pnpm --filter num-manage-api test"
+  }
+}
