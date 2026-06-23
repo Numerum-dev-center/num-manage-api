@@ -1,0 +1,3 @@
+packages:
+  - "num-manage-api"
+  - "num-manage-web"
