@@ -8,10 +8,10 @@
   },
   "workspaces": [
     "num-manage-api",
-    "num-manage-web"
+    "num-manage-web",
+    "contracts"
   ],
   "scripts": {
-    "install": "pnpm install",
     "start:api": "pnpm --filter num-manage-api start:dev",
     "start:web": "pnpm --filter num-manage-web dev",
     "build:api": "pnpm --filter num-manage-api build",
