@@ -11,4 +11,4 @@ export * from './users';
 // export * from './announcements';
 // export * from './certificates';
 export * from './dashboard';
-// export * from './common';
+export * from './common';
