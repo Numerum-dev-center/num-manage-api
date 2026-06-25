@@ -1,4 +1,2 @@
-packages:
-  - "num-manage-api"
-  - "num-manage-web"
-  - "contracts"
+allowBuilds:
+  unrs-resolver: true
