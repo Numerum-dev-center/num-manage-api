@@ -1,19 +1,21 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsEmail, IsString, IsOptional, IsEnum } from 'class-validator';
-import { CreateUserDto as CreateUserContract, Role } from "@num-manage/contracts";
+import { IsEmail, IsString, IsOptional, IsEnum, IsNotEmpty } from 'class-validator';
+import { Role } from '../enums/role.enum';
 
-export class CreateUserDto implements CreateUserContract {
+export class CreateUserDto {
   @ApiProperty()
   @IsString()
-  firstname: string;
+  @IsNotEmpty()
+  firstname!: string;
 
   @ApiProperty()
   @IsString()
-  lastname: string;
+  @IsNotEmpty()
+  lastname!: string;
 
   @ApiProperty()
   @IsEmail()
-  email: string;
+  email!: string;
 
   @ApiProperty({ required: false })
   @IsOptional()
@@ -22,5 +24,5 @@ export class CreateUserDto implements CreateUserContract {
 
   @ApiProperty({ enum: Role })
   @IsEnum(Role)
-  role: Role;
+  role!: Role;
 }

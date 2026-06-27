@@ -1,34 +1,35 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import { Controller, Post, Get, Body, Res, Request, UseGuards } from '@nestjs/common';
+import { Response } from 'express';
 import { AuthService } from './auth.service';
 import { CreateAuthDto } from './dto/create-auth.dto';
-import { UpdateAuthDto } from './dto/update-auth.dto';
+import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
+import { JwtAuthGuard } from './guards/jwt-auth.guard';
 
+@ApiTags('auth')
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
-  @Post()
-  create(@Body() createAuthDto: CreateAuthDto) {
-    return this.authService.create(createAuthDto);
+  @Post('register')
+  register(@Body() createAuthDto: CreateAuthDto) {
+    return this.authService.register(createAuthDto);
   }
 
-  @Get()
-  findAll() {
-    return this.authService.findAll();
+  @Post('login')
+  login(@Body() body: { email: string; password: string }) {
+    return this.authService.login(body.email, body.password);
   }
 
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.authService.findOne(+id);
+  @Get('logout')
+  logout(@Res({ passthrough: true }) res: Response) {
+    res.clearCookie('refresh_token');
+    return { message: 'Déconnexion réussie' };
   }
 
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() updateAuthDto: UpdateAuthDto) {
-    return this.authService.update(+id, updateAuthDto);
-  }
-
-  @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.authService.remove(+id);
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @Get('me')
+  getMe(@Request() req: any) {
+    return req.user;
   }
 }

@@ -1,26 +1,41 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, ConflictException, UnauthorizedException } from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
+import * as bcrypt from 'bcrypt';
 import { CreateAuthDto } from './dto/create-auth.dto';
-import { UpdateAuthDto } from './dto/update-auth.dto';
 
 @Injectable()
 export class AuthService {
-  create(createAuthDto: CreateAuthDto) {
-    return 'This action adds a new auth';
+  constructor(private jwtService: JwtService) {}
+
+  async register(createAuthDto: CreateAuthDto) {
+    // 1. Vérifier si l'email existe déjà
+    // (on le fera quand la base de données sera connectée)
+
+    // 2. Hasher le mot de passe
+    const hashedPassword = await bcrypt.hash(createAuthDto.password, 10);
+
+    // 3. Créer l'utilisateur (on le fera avec le repository)
+    const user = {
+      ...createAuthDto,
+      password: hashedPassword,
+    };
+
+    // 4. Générer et retourner le JWT
+    return this.generateJwt({ id: '1', email: user.email, role: 'APPRENANT' });
   }
 
-  findAll() {
-    return `This action returns all auth`;
+  async login(email: string, password: string) {
+    // 1. Trouver l'utilisateur (on le fera avec le repository)
+    // 2. Vérifier le mot de passe
+    // 3. Générer le JWT
+    throw new UnauthorizedException('Non implémenté');
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} auth`;
-  }
-
-  update(id: number, updateAuthDto: UpdateAuthDto) {
-    return `This action updates a #${id} auth`;
-  }
-
-  remove(id: number) {
-    return `This action removes a #${id} auth`;
+  generateJwt(user: { id: string; email: string; role: string }) {
+    return this.jwtService.sign({
+      sub: user.id,
+      email: user.email,
+      role: user.role,
+    });
   }
 }
