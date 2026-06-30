@@ -8,6 +8,10 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
+    app.enableCors({
+    origin: process.env.FRONTEND_URL!.split(','), // ajuste selon le port réel du frontend Next.js
+    credentials: true, // pour envoyer/recevoir des cookies (refresh token httpOnly )
+  });
   const config = new DocumentBuilder()
   .setTitle('Numerum API')
   .setDescription('API du projet Numerum')
