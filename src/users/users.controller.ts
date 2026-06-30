@@ -10,6 +10,7 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
+import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { ApiBearerAuth, ApiTags, ApiOperation } from '@nestjs/swagger';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -49,6 +50,17 @@ export class UsersController {
   @ApiOperation({ summary: 'Récupérer un utilisateur par ID' })
   async findOne(@Param('id') id: string): Promise<User> {
     return this.usersService.findOne(id);
+  }
+
+  @Patch('me')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Mettre à jour son propre profil' })
+  async updateMe(
+    @CurrentUser() currentUser: any,
+    @Body() updateUserDto: UpdateUserDto,
+  ): Promise<User> {
+    return this.usersService.update(currentUser.sub, updateUserDto);
   }
 
   @Patch(':id')
