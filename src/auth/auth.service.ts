@@ -6,6 +6,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
+import { Response } from 'express';
 import * as bcrypt from 'bcrypt';
 import { User } from '../users/entities/user.entity';
 import { RegisterDto } from './dto/register.dto';
@@ -19,7 +20,7 @@ export class AuthService {
     private readonly jwtService: JwtService,
   ) {}
 
-  async register(registerDto: RegisterDto) {
+  async register(registerDto: RegisterDto ,res: Response) {
     const existing = await this.userRepository.findOne({
       where: { email: registerDto.email },
     });
@@ -34,10 +35,23 @@ export class AuthService {
     });
     const savedUser = await this.userRepository.save(user);
 
-    return this.generateToken(savedUser);
+    const accessToken = this.generateAccessToken(savedUser);
+const refreshToken = this.generateRefreshToken(savedUser);
+this.setRefreshTokenCookie(res, refreshToken);
+
+return {
+  accessToken,
+  user: {
+    id: savedUser.id,
+    email: savedUser.email,
+    firstname: savedUser.firstname,
+    lastname: savedUser.lastname,
+    role: savedUser.role,
+  },
+};
   }
 
-  async login(loginDto: LoginDto) {
+  async login(loginDto: LoginDto, res: Response) {
     const user = await this.userRepository.findOne({
       where: { email: loginDto.email },
     });
@@ -53,22 +67,68 @@ export class AuthService {
       throw new UnauthorizedException('Email ou mot de passe incorrect');
     }
 
-    return this.generateToken(user);
+    const accessToken = this.generateAccessToken(user);
+  const refreshToken = this.generateRefreshToken(user);
+  this.setRefreshTokenCookie(res, refreshToken);
+
+  return {
+    accessToken,
+    user: {
+      id: user.id,
+      email: user.email,
+      firstname: user.firstname,
+      lastname: user.lastname,
+      role: user.role,
+    },
+  };
   }
 
-  private generateToken(user: User) {
-    const payload = { sub: user.id, email: user.email, role: user.role };
-    return {
-      accessToken: this.jwtService.sign(payload),
-      user: {
-        id: user.id,
-        email: user.email,
-        firstname: user.firstname,
-        lastname: user.lastname,
-        role: user.role,
-      },
-    };
-  } 
+  private generateAccessToken(user: User): string {
+  const payload = { sub: user.id, email: user.email, role: user.role };
+  return this.jwtService.sign(payload);
+};
+
+private generateRefreshToken(user: User): string {
+  const payload = { sub: user.id };
+  return this.jwtService.sign(payload, {
+    secret: process.env.JWT_REFRESH_SECRET!,
+    expiresIn: (process.env.JWT_REFRESH_EXPIRES_IN! ?? '7d') as any,
+  });
+}
+
+setRefreshTokenCookie(res: Response, refreshToken: string): void {
+  res.cookie('refreshToken', refreshToken, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'strict',
+    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 jours en ms
+  });
+}
+async refresh(req: any, res: Response) {
+  const token = req.cookies?.refreshToken;
+  if (!token) {
+    throw new UnauthorizedException('Refresh token manquant');
+  }
+
+  try {
+    const payload = this.jwtService.verify(token, {
+      secret: process.env.JWT_REFRESH_SECRET,
+    });
+    const user = await this.userRepository.findOne({
+      where: { id: payload.sub },
+    });
+    if (!user) throw new UnauthorizedException('Utilisateur introuvable');
+
+    const accessToken = this.generateAccessToken(user);
+    return { accessToken };
+  } catch {
+    throw new UnauthorizedException('Refresh token invalide ou expiré');
+  }
+}
+
+logout(res: Response): void {
+  res.clearCookie('refreshToken');
+}
 
   async getProfile(userId: string) {
     const user = await this.userRepository.findOne({ where: { id: userId } });

@@ -1,4 +1,5 @@
-import { Controller, Post, Body, HttpCode, HttpStatus,  Get, UseGuards } from '@nestjs/common';
+import { Controller, Post, Body, HttpCode, HttpStatus,  Get, UseGuards, Res, Req } from '@nestjs/common';
+import { Request, Response } from 'express';
 import { ApiOperation, ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
@@ -14,15 +15,15 @@ export class AuthController {
   @Post('register')
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Créer un compte (email/mot de passe)' })
-  async register(@Body() registerDto: RegisterDto) {
-    return this.authService.register(registerDto);
+  async register(@Body() registerDto: RegisterDto, @Res({ passthrough: true }) res: Response) {
+    return this.authService.register(registerDto, res);
   }
 
   @Post('login')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Se connecter et obtenir un token JWT' })
-  async login(@Body() loginDto: LoginDto) {
-    return this.authService.login(loginDto);
+  async login(@Body() loginDto: LoginDto, @Res({ passthrough: true }) res: Response) {
+    return this.authService.login(loginDto, res);
   }
 
   @Get('me')
@@ -32,4 +33,20 @@ export class AuthController {
   async getProfile(@CurrentUser() user: any) {
     return user;
   }
+  @Post('refresh')
+@HttpCode(HttpStatus.OK)
+@ApiOperation({ summary: 'Rafraîchir l\'accessToken via le cookie refreshToken' })
+async refresh(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
+  return this.authService.refresh(req, res);
+}
+
+@Post('logout')
+@HttpCode(HttpStatus.OK)
+@UseGuards(JwtAuthGuard)
+@ApiBearerAuth()
+@ApiOperation({ summary: 'Déconnexion' })
+logout(@Res({ passthrough: true }) res: Response) {
+  this.authService.logout(res);
+  return { message: 'Déconnecté avec succès' };
+}
 }

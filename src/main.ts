@@ -1,4 +1,5 @@
 import { NestFactory } from '@nestjs/core';
+import cookieParser from 'cookie-parser';
 import { AppModule } from './app.module';
 import { join } from 'path';
 import {  Reflector } from '@nestjs/core';
@@ -29,6 +30,7 @@ async function bootstrap() {
       transform: true, // convertit automatiquement les types (ex: string -> number)
     }),
   );
+  app.use(cookieParser());
   app.useStaticAssets(join(__dirname, '..', 'public'));
   app.setBaseViewsDir(join(__dirname, '..', 'views'));
   app.setViewEngine('hbs');
