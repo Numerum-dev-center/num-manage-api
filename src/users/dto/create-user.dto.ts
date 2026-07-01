@@ -6,23 +6,23 @@ export class CreateUserDto {
   @ApiProperty({ example: 'your name' })
   @IsNotEmpty()
   @IsString()
-  firstname: string;
+  firstname!: string;
 
   @ApiProperty({ example: 'your family name' })
   @IsNotEmpty()
   @IsString()
-  lastname: string;
+  lastname!: string;
 
   @ApiProperty({ example: 'email@example.com' })
   @IsNotEmpty()
   @IsEmail()
-  email: string;
+  email!: string;
 
   @ApiProperty({ example: 'Password!' })
   @IsNotEmpty()
   @IsString()
   @MinLength(8)
-  password: string;
+  password!: string;
 
   @ApiProperty({ enum: Role, default: Role.APPRENANT })
   @IsOptional()
