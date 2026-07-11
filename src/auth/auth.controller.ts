@@ -1,11 +1,12 @@
-import { Controller, Get, Post, Body, HttpCode, HttpStatus, Res, Req, UnauthorizedException } from '@nestjs/common';
-import { ApiOperation, ApiTags } from '@nestjs/swagger';
-import { Response, Request } from 'express';
+import { Controller, Post, Body, HttpCode, HttpStatus,  Get, UseGuards, Res, Req } from '@nestjs/common';
+import { Request, Response } from 'express';
+import { ApiOperation, ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
+import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { Public } from '../common/decorators/public.decorator';
-
 @ApiTags('auth')
 @Controller('auth')
 export class AuthController {
@@ -15,81 +16,39 @@ export class AuthController {
   @Post('register')
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Créer un compte (email/mot de passe)' })
-  async register(
-    @Body() registerDto: RegisterDto,
-    @Res({ passthrough: true }) res: Response,
-  ) {
-    const { accessToken, refreshToken } = await this.authService.register(registerDto);
-
-    res.cookie('refresh_token', refreshToken, {
-      httpOnly: true,
-      sameSite: 'strict',
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-    });
-
-    return { accessToken };
+  async register(@Body() registerDto: RegisterDto, @Res({ passthrough: true }) res: Response) {
+    return this.authService.register(registerDto, res);
   }
 
   @Public()
   @Post('login')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Se connecter et obtenir un token JWT' })
-  async login(
-    @Body() loginDto: LoginDto,
-    @Res({ passthrough: true }) res: Response,
-  ) {
-    const { accessToken, refreshToken } = await this.authService.login(loginDto);
-
-    res.cookie('refresh_token', refreshToken, {
-      httpOnly: true,
-      sameSite: 'strict',
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-    });
-
-    return { accessToken };
+  async login(@Body() loginDto: LoginDto, @Res({ passthrough: true }) res: Response) {
+    return this.authService.login(loginDto, res);
   }
 
-  @Public()
+  @Get('me')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Obtenir le profil de l’utilisateur connecté' })
+  async getProfile(@CurrentUser() user: any) {
+    return user;
+  }
   @Post('refresh')
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Renouveler le token avec le refresh token (cookie)' })
-  async refresh(
-    @Req() req: Request,
-    @Res({ passthrough: true }) res: Response,
-  ) {
-    const oldRefreshToken = req.cookies?.['refresh_token'];
+@HttpCode(HttpStatus.OK)
+@ApiOperation({ summary: 'Rafraîchir l\'accessToken via le cookie refreshToken' })
+async refresh(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
+  return this.authService.refresh(req, res);
+}
 
-    if (!oldRefreshToken) {
-      throw new UnauthorizedException('Refresh token manquant');
-    }
-
-    const { accessToken, refreshToken } = await this.authService.refresh(oldRefreshToken);
-
-    res.cookie('refresh_token', refreshToken, {
-      httpOnly: true,
-      sameSite: 'strict',
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-    });
-
-    return { accessToken };
-  }
-
-  @Public()
-  @Get('logout')
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Déconnexion : ferme la session' })
-  async logout(
-    @Req() req: Request,
-    @Res({ passthrough: true }) res: Response,
-  ) {
-    const refreshToken = req.cookies?.['refresh_token'];
-
-    if (refreshToken) {
-      await this.authService.logout(refreshToken);
-    }
-
-    res.clearCookie('refresh_token');
-
-    return { message: 'Déconnexion réussie' };
-  }
+@Post('logout')
+@HttpCode(HttpStatus.OK)
+@UseGuards(JwtAuthGuard)
+@ApiBearerAuth()
+@ApiOperation({ summary: 'Déconnexion' })
+logout(@Res({ passthrough: true }) res: Response) {
+  this.authService.logout(res);
+  return { message: 'Déconnecté avec succès' };
+}
 }

@@ -10,6 +10,7 @@ import { UsersModule } from './users/users.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.gard';
 import { PromotionsModule } from './promotions/promotions.module';
+import { StudentsModule } from './students/students.module';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { PromotionsModule } from './promotions/promotions.module';
     AuthModule,
     UsersModule,
     PromotionsModule,
+    StudentsModule,
   ],
   controllers: [AppController],
   providers: [

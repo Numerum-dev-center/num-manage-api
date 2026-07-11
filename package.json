@@ -10,6 +10,7 @@
     "pnpm": ">=9"
   },
   "scripts": {
+    "seed": "ts-node -r tsconfig-paths/register ./src/database/seeds/seed.ts",
     "preinstall": "npx only-allow pnpm",
     "build": "nest build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
