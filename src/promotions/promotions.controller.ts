@@ -8,7 +8,7 @@ import { Role } from '../common/enums/role.enum';
 
 @ApiTags('promotions')
 @ApiBearerAuth()
-@Controller('promotions')
+@Controller('admin/promotions')
 export class PromotionsController {
   constructor(private readonly promotionsService: PromotionsService) {}
 

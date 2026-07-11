@@ -5,6 +5,7 @@ import { Promotion } from './entities/promotion.entity';
 import { CreatePromotionDto } from './dto/create-promotion.dto';
 import { UpdatePromotionDto } from './dto/update-promotion.dto';
 import { User } from '../users/entities/user.entity';
+import { Student } from '../students/entities/student.entity';
 
 @Injectable()
 export class PromotionsService {
@@ -13,6 +14,8 @@ export class PromotionsService {
     private readonly promotionRepository: Repository<Promotion>,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
+    @InjectRepository(Student)
+    private readonly studentRepository: Repository<Student>,
   ) {}
 
   async create(createPromotionDto: CreatePromotionDto) {
@@ -35,9 +38,20 @@ export class PromotionsService {
   }
 
   async findAll() {
-    return this.promotionRepository.find({
+    const promotions = await this.promotionRepository.find({
       relations: { formateur: true },
     });
+
+    const result = await Promise.all(
+      promotions.map(async (promotion) => {
+        const membresCount = await this.studentRepository.count({
+          where: { promotion: { id: promotion.id } },
+        });
+        return { ...promotion, membresCount };
+      }),
+    );
+
+    return result;
   }
 
   async findOne(id: string) {
