@@ -17,7 +17,7 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { User } from './entities/user.entity';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { RolesGuard } from '../common/guards/roles.gard';
+import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { Role } from '../common/enums/role.enum';
 
@@ -37,7 +37,8 @@ export class UsersController {
   }
 
   @Get()
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.SUPER_ADMIN, Role.FORMATEUR)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Récupérer tous les utilisateurs' })
   async findAll(): Promise<User[]> {
@@ -45,7 +46,8 @@ export class UsersController {
   }
 
   @Get(':id')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.SUPER_ADMIN, Role.FORMATEUR)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Récupérer un utilisateur par ID' })
   async findOne(@Param('id') id: string): Promise<User> {
@@ -64,7 +66,8 @@ export class UsersController {
   }
 
   @Patch(':id')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.SUPER_ADMIN)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Mettre à jour un utilisateur' })
   async update(
@@ -75,7 +78,8 @@ export class UsersController {
   }
 
   @Delete(':id')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.SUPER_ADMIN)
   @ApiBearerAuth()
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Supprimer (soft delete) un utilisateur' })
@@ -84,7 +88,8 @@ export class UsersController {
   }
 
   @Patch(':id/toggle-active')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.SUPER_ADMIN)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Activer/désactiver un utilisateur' })
   async toggleActive(@Param('id') id: string): Promise<User> {
