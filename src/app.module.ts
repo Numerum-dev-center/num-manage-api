@@ -4,11 +4,10 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { ProjetsService } from './projets/projets.service';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
-import { RolesGuard } from './common/guards/roles.gard';
+import { RolesGuard } from './common/guards/roles.guard';
 import { PromotionsModule } from './promotions/promotions.module';
 import { StudentsModule } from './students/students.module';
 
@@ -38,7 +37,6 @@ import { StudentsModule } from './students/students.module';
   controllers: [AppController],
   providers: [
     AppService,
-    ProjetsService,
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
   ],
