@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Student } from './entities/student.entity';
@@ -6,6 +6,7 @@ import { User } from '../users/entities/user.entity';
 import { Promotion } from '../promotions/entities/promotion.entity';
 import { CreateStudentDto } from './dto/create-student.dto';
 import { UpdateStudentDto } from './dto/update-student.dto';
+import { Role } from '../common/enums/role.enum';
 
 @Injectable()
 export class StudentsService {
@@ -23,6 +24,10 @@ export class StudentsService {
       where: { id: createStudentDto.userId },
     });
     if (!user) throw new NotFoundException('Utilisateur introuvable');
+
+    if (user.role !== Role.APPRENANT) {
+      throw new BadRequestException('Cet utilisateur doit avoir le rôle apprenant');
+    }
 
     const existing = await this.studentRepository.findOne({
       where: { user: { id: createStudentDto.userId } },

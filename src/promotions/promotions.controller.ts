@@ -48,6 +48,17 @@ export class PromotionsController {
     return this.promotionsService.archive(id);
   }
 
+  @Post(':id/apprenants')
+  @Roles(Role.SUPER_ADMIN, Role.FORMATEUR)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Affecter un apprenant à une promotion' })
+  addApprenant(
+    @Param('id') promotionId: string,
+    @Body('studentId') studentId: string,
+  ) {
+    return this.promotionsService.addApprenant(promotionId, studentId);
+  }
+
   @Delete(':id')
   @Roles(Role.SUPER_ADMIN)
   @HttpCode(HttpStatus.NO_CONTENT)

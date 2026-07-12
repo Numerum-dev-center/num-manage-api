@@ -88,6 +88,30 @@ export class PromotionsService {
     return this.promotionRepository.save(promotion);
   }
 
+  async addApprenant(promotionId: string, studentId: string) {
+    const promotion = await this.promotionRepository.findOne({
+      where: { id: promotionId },
+    });
+    if (!promotion) throw new NotFoundException('Promotion introuvable');
+    if (promotion.isArchived) throw new BadRequestException('Impossible d\'affecter à une promotion archivée');
+
+    const student = await this.studentRepository.findOne({
+      where: { id: studentId },
+    });
+    if (!student) throw new NotFoundException('Apprenant introuvable');
+
+    await this.studentRepository
+      .createQueryBuilder()
+      .relation(Student, 'promotion')
+      .of(student.id)
+      .set(promotion.id);
+
+    return this.studentRepository.findOne({
+      where: { id: studentId },
+      relations: { user: true, promotion: true },
+    });
+  }
+
   async remove(id: string) {
     const promotion = await this.findOne(id);
     return this.promotionRepository.remove(promotion);
