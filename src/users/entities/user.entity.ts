@@ -1,6 +1,15 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  ManyToOne,
+  JoinColumn,
+  CreateDateColumn,
+  UpdateDateColumn,
+} from 'typeorm';
 import { Role } from '../../common/enums/role.enum';
 import { Exclude, Expose } from 'class-transformer';
+import { Promotion } from '../../promotions/entities/promotion.entity';
 
 @Entity('users')
 export class User {
@@ -30,13 +39,23 @@ export class User {
   @Expose()
   @Column({ type: 'boolean', default: true })
   isActive!: boolean;
-  
+
   @Column({ type: 'boolean', default: false })
   isDeleted!: boolean;
 
   @Expose()
   @Column({ type: 'varchar', nullable: true })
   phoneNumber?: string;
+
+  @Expose()
+  @ManyToOne(() => Promotion, (promotion) => promotion.apprenants, {
+    nullable: true,
+  })
+  @JoinColumn({ name: 'promotionId' })
+  promotion?: Promotion | null;
+
+  @Column({ type: 'uuid', nullable: true })
+  promotionId?: string | null;
 
   @CreateDateColumn()
   createdAt!: Date;
