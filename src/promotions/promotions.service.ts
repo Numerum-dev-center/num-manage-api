@@ -54,9 +54,12 @@ export class PromotionsService {
     if (updatePromotionDto.formateurId) {
       await this.validateFormateurId(updatePromotionDto.formateurId);
     }
-    const promotion = await this.findOne(id);
-    Object.assign(promotion, updatePromotionDto);
-    return this.promotionRepository.save(promotion);
+    await this.findOne(id);
+    // Utilise une mise à jour directe par colonnes plutôt qu'un Object.assign +
+    // save() sur l'entité : la relation `formateur` chargée par findOne() garderait
+    // sinon sa valeur périmée et écraserait le nouveau formateurId lors du save().
+    await this.promotionRepository.update(id, updatePromotionDto);
+    return this.findOne(id);
   }
 
   private async validateFormateurId(formateurId: string): Promise<void> {
