@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
@@ -19,7 +23,9 @@ export class UsersService {
       where: { email: createUserDto.email },
     });
     if (existingUser) {
-      throw new ConflictException(`L'email ${createUserDto.email} est déjà utilisé`);
+      throw new ConflictException(
+        `L'email ${createUserDto.email} est déjà utilisé`,
+      );
     }
 
     // Hasher le password
@@ -64,6 +70,9 @@ export class UsersService {
   }
 
   async validatePassword(user: User, password: string): Promise<boolean> {
+    if (!user.password) {
+      return false;
+    }
     return bcrypt.compare(password, user.password);
   }
 }

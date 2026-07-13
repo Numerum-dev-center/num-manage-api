@@ -29,8 +29,12 @@ export class User {
   email!: string;
 
   @Exclude()
-  @Column({ type: 'varchar', length: 255 })
-  password!: string;
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  password?: string | null;
+
+  @Exclude()
+  @Column({ type: 'varchar', length: 255, nullable: true, unique: true })
+  googleId?: string | null;
 
   @Expose()
   @Column({ type: 'enum', enum: Role, default: Role.APPRENANT })
