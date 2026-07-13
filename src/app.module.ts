@@ -6,6 +6,8 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { ProjetsService } from './projets.service';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
+import { PromotionsModule } from './promotions/promotions.module';
+import { MonEspaceModule } from './mon-espace/mon-espace.module';
 
 @Module({
   imports: [
@@ -27,6 +29,8 @@ import { UsersModule } from './users/users.module';
     }),
     AuthModule,
     UsersModule,
+    PromotionsModule,
+    MonEspaceModule,
   ],
   controllers: [AppController],
   providers: [AppService, ProjetsService],
