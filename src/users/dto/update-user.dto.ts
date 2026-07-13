@@ -1,8 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsEmail, IsString, IsOptional, IsEnum } from 'class-validator';
-import { UpdateUserDto as UpdateUserContract, Role } from '@num-manage/contracts';
+import { IsString, IsOptional, IsEmail } from 'class-validator';
 
-export class UpdateUserDto implements UpdateUserContract {
+export class UpdateUserDto {
   @ApiProperty({ required: false })
   @IsOptional()
   @IsString()
@@ -17,9 +16,4 @@ export class UpdateUserDto implements UpdateUserContract {
   @IsOptional()
   @IsEmail()
   email?: string;
-
-  @ApiProperty({ required: false, enum: Role })
-  @IsOptional()
-  @IsEnum(Role)
-  role?: Role;
 }
