@@ -3,6 +3,8 @@ import {
   PrimaryGeneratedColumn,
   Column,
   OneToMany,
+  ManyToOne,
+  JoinColumn,
   CreateDateColumn,
   UpdateDateColumn,
 } from 'typeorm';
@@ -25,6 +27,22 @@ export class Promotion {
   @Expose()
   @Column({ type: 'boolean', default: false })
   isArchived!: boolean;
+
+  @Expose()
+  @Column({ type: 'date', nullable: true })
+  startDate?: string | null;
+
+  @Expose()
+  @Column({ type: 'date', nullable: true })
+  endDate?: string | null;
+
+  @Expose()
+  @ManyToOne(() => User, { nullable: true })
+  @JoinColumn({ name: 'formateurId' })
+  formateur?: User | null;
+
+  @Column({ type: 'uuid', nullable: true })
+  formateurId?: string | null;
 
   @Expose()
   @OneToMany(() => User, (user) => user.promotion)

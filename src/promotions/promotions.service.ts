@@ -22,6 +22,9 @@ export class PromotionsService {
   ) {}
 
   async create(createPromotionDto: CreatePromotionDto): Promise<Promotion> {
+    if (createPromotionDto.formateurId) {
+      await this.validateFormateurId(createPromotionDto.formateurId);
+    }
     const promotion = this.promotionRepository.create(createPromotionDto);
     return this.promotionRepository.save(promotion);
   }
@@ -29,14 +32,14 @@ export class PromotionsService {
   async findAll(includeArchived = false): Promise<Promotion[]> {
     return this.promotionRepository.find({
       where: includeArchived ? {} : { isArchived: false },
-      relations: { apprenants: true },
+      relations: { apprenants: true, formateur: true },
     });
   }
 
   async findOne(id: string): Promise<Promotion> {
     const promotion = await this.promotionRepository.findOne({
       where: { id },
-      relations: { apprenants: true },
+      relations: { apprenants: true, formateur: true },
     });
     if (!promotion) {
       throw new NotFoundException(`Promotion ${id} non trouvée`);
@@ -48,9 +51,26 @@ export class PromotionsService {
     id: string,
     updatePromotionDto: UpdatePromotionDto,
   ): Promise<Promotion> {
+    if (updatePromotionDto.formateurId) {
+      await this.validateFormateurId(updatePromotionDto.formateurId);
+    }
     const promotion = await this.findOne(id);
     Object.assign(promotion, updatePromotionDto);
     return this.promotionRepository.save(promotion);
+  }
+
+  private async validateFormateurId(formateurId: string): Promise<void> {
+    const formateur = await this.userRepository.findOne({
+      where: { id: formateurId, isDeleted: false },
+    });
+    if (!formateur) {
+      throw new BadRequestException(`Formateur ${formateurId} introuvable`);
+    }
+    if (formateur.role !== Role.FORMATEUR) {
+      throw new BadRequestException(
+        `L'utilisateur ${formateurId} n'a pas le rôle formateur`,
+      );
+    }
   }
 
   async archive(id: string): Promise<Promotion> {
