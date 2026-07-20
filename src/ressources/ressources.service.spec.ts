@@ -181,4 +181,16 @@ describe('RessourcesService', () => {
       ).rejects.toBeInstanceOf(NotFoundException);
     });
   });
+
+  describe('remove', () => {
+    it('ne tente pas de supprimer un fichier disque pour une ressource de type lien', async () => {
+      mockRessourceRepository.findOne.mockResolvedValue({
+        id: 'r1',
+        storedPath: null,
+      });
+
+      await expect(service.remove('r1')).resolves.toBeUndefined();
+      expect(mockRessourceRepository.remove).toHaveBeenCalled();
+    });
+  });
 });

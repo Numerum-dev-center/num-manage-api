@@ -109,6 +109,8 @@ export class RessourcesService {
       throw new NotFoundException(`Ressource ${id} non trouvée`);
     }
     await this.ressourceRepository.remove(ressource);
-    await fs.promises.unlink(ressource.storedPath).catch(() => undefined);
+    if (ressource.storedPath) {
+      await fs.promises.unlink(ressource.storedPath).catch(() => undefined);
+    }
   }
 }

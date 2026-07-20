@@ -92,7 +92,7 @@ export class RessourcesController {
       id,
       currentUser,
     );
-    res.download(ressource.storedPath, ressource.filename);
+    res.download(ressource.storedPath!, ressource.filename!);
   }
 
   @Delete(':id')
