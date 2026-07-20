@@ -6,11 +6,13 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as fs from 'fs';
+import { extname } from 'path';
 import { Ressource } from './entities/ressource.entity';
 import { Promotion } from '../promotions/entities/promotion.entity';
 import { User } from '../users/entities/user.entity';
 import { Role } from '../common/enums/role.enum';
 import { CreateRessourceDto } from './dto/create-ressource.dto';
+import { RessourceType } from './enums/ressource-type.enum';
 
 export interface CurrentUserPayload {
   sub: string;
@@ -29,7 +31,7 @@ export class RessourcesService {
   ) {}
 
   async create(
-    file: Express.Multer.File,
+    file: Express.Multer.File | undefined,
     dto: CreateRessourceDto,
     uploadedById: string,
   ): Promise<Ressource> {
@@ -37,19 +39,38 @@ export class RessourcesService {
       where: { id: dto.promotionId },
     });
     if (!promotion) {
-      await fs.promises.unlink(file.path).catch(() => undefined);
+      if (file) {
+        await fs.promises.unlink(file.path).catch(() => undefined);
+      }
       throw new NotFoundException(`Promotion ${dto.promotionId} non trouvée`);
     }
 
-    const ressource = this.ressourceRepository.create({
-      title: dto.title?.trim() || file.originalname,
-      filename: file.originalname,
-      storedPath: file.path,
-      mimeType: file.mimetype,
-      size: file.size,
-      promotionId: dto.promotionId,
-      uploadedById,
-    });
+    const ressource = file
+      ? this.ressourceRepository.create({
+          type:
+            extname(file.originalname).toLowerCase() === '.zip'
+              ? RessourceType.ZIP
+              : RessourceType.PDF,
+          title: dto.title?.trim() || file.originalname,
+          filename: file.originalname,
+          storedPath: file.path,
+          mimeType: file.mimetype,
+          size: file.size,
+          url: null,
+          promotionId: dto.promotionId,
+          uploadedById,
+        })
+      : this.ressourceRepository.create({
+          type: RessourceType.LIEN,
+          title: dto.title?.trim() || dto.url,
+          filename: null,
+          storedPath: null,
+          mimeType: null,
+          size: null,
+          url: dto.url,
+          promotionId: dto.promotionId,
+          uploadedById,
+        });
     return this.ressourceRepository.save(ressource);
   }
 

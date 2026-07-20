@@ -1,4 +1,4 @@
-import { IsOptional, IsString, IsUUID } from 'class-validator';
+import { IsOptional, IsString, IsUUID, IsUrl } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class CreateRessourceDto {
@@ -12,9 +12,20 @@ export class CreateRessourceDto {
   @ApiProperty({
     example: 'Support de cours - Semaine 1',
     required: false,
-    description: 'Titre affiché ; par défaut le nom du fichier envoyé',
+    description:
+      'Titre affiché ; par défaut le nom du fichier envoyé (ou le lien)',
   })
   @IsOptional()
   @IsString()
   title?: string;
+
+  @ApiProperty({
+    example: 'https://drive.google.com/file/d/...',
+    required: false,
+    description:
+      'Lien externe vers la ressource ; alternative à l’envoi d’un fichier (fournir l’un ou l’autre, pas les deux)',
+  })
+  @IsOptional()
+  @IsUrl({ require_protocol: true })
+  url?: string;
 }

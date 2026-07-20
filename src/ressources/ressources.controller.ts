@@ -31,6 +31,7 @@ import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { Role } from '../common/enums/role.enum';
+import { RessourceType } from './enums/ressource-type.enum';
 
 @ApiTags('ressources')
 @Controller('ressources')
@@ -45,15 +46,21 @@ export class RessourcesController {
   @UseInterceptors(FileInterceptor('file', ressourcesMulterOptions))
   @ApiConsumes('multipart/form-data')
   @ApiOperation({
-    summary: 'Téléverser une ressource pédagogique (PDF ou ZIP, 10 Mo max)',
+    summary:
+      'Téléverser une ressource pédagogique : fichier (PDF/ZIP, 10 Mo max) ou lien externe',
   })
   async create(
-    @UploadedFile() file: Express.Multer.File,
+    @UploadedFile() file: Express.Multer.File | undefined,
     @Body() dto: CreateRessourceDto,
     @CurrentUser() currentUser: { sub: string },
   ): Promise<Ressource> {
-    if (!file) {
-      throw new BadRequestException('Aucun fichier fourni');
+    if (!file && !dto.url) {
+      throw new BadRequestException('Fournissez un fichier ou un lien');
+    }
+    if (file && dto.url) {
+      throw new BadRequestException(
+        'Fournissez soit un fichier, soit un lien, pas les deux',
+      );
     }
     return this.ressourcesService.create(file, dto, currentUser.sub);
   }
@@ -92,6 +99,10 @@ export class RessourcesController {
       id,
       currentUser,
     );
+    if (ressource.type === RessourceType.LIEN) {
+      res.redirect(ressource.url!);
+      return;
+    }
     res.download(ressource.storedPath!, ressource.filename!);
   }
 

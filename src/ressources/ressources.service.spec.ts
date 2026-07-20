@@ -7,6 +7,7 @@ import { Ressource } from './entities/ressource.entity';
 import { Promotion } from '../promotions/entities/promotion.entity';
 import { User } from '../users/entities/user.entity';
 import { Role } from '../common/enums/role.enum';
+import { RessourceType } from './enums/ressource-type.enum';
 
 describe('RessourcesService', () => {
   let service: RessourcesService;
@@ -179,6 +180,48 @@ describe('RessourcesService', () => {
           'formateur-1',
         ),
       ).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it('crée une ressource de type lien quand aucun fichier n’est fourni', async () => {
+      mockPromotionRepository.findOne.mockResolvedValue({ id: 'promo-A' });
+      mockRessourceRepository.create.mockImplementation((data: object) => data);
+      mockRessourceRepository.save.mockImplementation((data: object) =>
+        Promise.resolve({ id: 'r1', ...data }),
+      );
+
+      const result = await service.create(
+        undefined,
+        { promotionId: 'promo-A', url: 'https://example.com/support.pdf' },
+        'formateur-1',
+      );
+
+      expect(result).toMatchObject({
+        type: RessourceType.LIEN,
+        url: 'https://example.com/support.pdf',
+        storedPath: null,
+        filename: null,
+      });
+    });
+
+    it('déduit le type ZIP depuis l’extension du fichier envoyé', async () => {
+      mockPromotionRepository.findOne.mockResolvedValue({ id: 'promo-A' });
+      mockRessourceRepository.create.mockImplementation((data: object) => data);
+      mockRessourceRepository.save.mockImplementation((data: object) =>
+        Promise.resolve({ id: 'r1', ...data }),
+      );
+
+      const result = await service.create(
+        {
+          path: '/tmp/archive.zip',
+          originalname: 'archive.zip',
+          mimetype: 'application/zip',
+          size: 1234,
+        } as Express.Multer.File,
+        { promotionId: 'promo-A' },
+        'formateur-1',
+      );
+
+      expect(result).toMatchObject({ type: RessourceType.ZIP, url: null });
     });
   });
 
