@@ -10,6 +10,8 @@ import { Roles } from '../common/decorators/roles.decorator';
 import { Role } from '../common/enums/role.enum';
 import { RessourcesService } from '../ressources/ressources.service';
 import { Ressource } from '../ressources/entities/ressource.entity';
+import { AnnoncesService } from '../annonces/annonces.service';
+import { Annonce } from '../annonces/entities/annonce.entity';
 
 @ApiTags('mon-espace')
 @Controller('mon-espace')
@@ -20,6 +22,7 @@ export class MonEspaceController {
   constructor(
     private readonly promotionsService: PromotionsService,
     private readonly ressourcesService: RessourcesService,
+    private readonly annoncesService: AnnoncesService,
   ) {}
 
   @Get('ma-promotion')
@@ -36,5 +39,13 @@ export class MonEspaceController {
   })
   async getRessources(@CurrentUser() currentUser: any): Promise<Ressource[]> {
     return this.ressourcesService.findMine(currentUser.sub);
+  }
+
+  @Get('annonces')
+  @ApiOperation({
+    summary: 'Lister les annonces de la promotion de l’apprenant connecté',
+  })
+  async getAnnonces(@CurrentUser() currentUser: any): Promise<Annonce[]> {
+    return this.annoncesService.findMine(currentUser.sub);
   }
 }
