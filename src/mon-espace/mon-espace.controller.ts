@@ -8,6 +8,8 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { Role } from '../common/enums/role.enum';
+import { RessourcesService } from '../ressources/ressources.service';
+import { Ressource } from '../ressources/entities/ressource.entity';
 
 @ApiTags('mon-espace')
 @Controller('mon-espace')
@@ -15,7 +17,10 @@ import { Role } from '../common/enums/role.enum';
 @Roles(Role.APPRENANT)
 @ApiBearerAuth()
 export class MonEspaceController {
-  constructor(private readonly promotionsService: PromotionsService) {}
+  constructor(
+    private readonly promotionsService: PromotionsService,
+    private readonly ressourcesService: RessourcesService,
+  ) {}
 
   @Get('ma-promotion')
   @ApiOperation({ summary: 'Récupérer sa promotion et ses camarades' })
@@ -23,5 +28,13 @@ export class MonEspaceController {
     @CurrentUser() currentUser: any,
   ): Promise<{ promotion: Promotion | null; camarades: User[] }> {
     return this.promotionsService.findMyPromotion(currentUser.sub);
+  }
+
+  @Get('ressources')
+  @ApiOperation({
+    summary: 'Lister les ressources de la promotion de l’apprenant connecté',
+  })
+  async getRessources(@CurrentUser() currentUser: any): Promise<Ressource[]> {
+    return this.ressourcesService.findMine(currentUser.sub);
   }
 }

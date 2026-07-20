@@ -8,6 +8,7 @@ import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { PromotionsModule } from './promotions/promotions.module';
 import { MonEspaceModule } from './mon-espace/mon-espace.module';
+import { RessourcesModule } from './ressources/ressources.module';
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { MonEspaceModule } from './mon-espace/mon-espace.module';
     UsersModule,
     PromotionsModule,
     MonEspaceModule,
+    RessourcesModule,
   ],
   controllers: [AppController],
   providers: [AppService, ProjetsService],

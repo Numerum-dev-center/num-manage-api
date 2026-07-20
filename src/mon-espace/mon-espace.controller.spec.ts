@@ -6,6 +6,8 @@ import { MonEspaceController } from './mon-espace.controller';
 import { PromotionsService } from '../promotions/promotions.service';
 import { Promotion } from '../promotions/entities/promotion.entity';
 import { User } from '../users/entities/user.entity';
+import { RessourcesService } from '../ressources/ressources.service';
+import { Ressource } from '../ressources/entities/ressource.entity';
 
 describe('MonEspaceController', () => {
   let controller: MonEspaceController;
@@ -15,12 +17,17 @@ describe('MonEspaceController', () => {
       controllers: [MonEspaceController],
       providers: [
         PromotionsService,
+        RessourcesService,
         {
           provide: getRepositoryToken(Promotion),
           useValue: {},
         },
         {
           provide: getRepositoryToken(User),
+          useValue: {},
+        },
+        {
+          provide: getRepositoryToken(Ressource),
           useValue: {},
         },
         {

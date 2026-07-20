@@ -81,18 +81,7 @@ export class RessourcesController {
     return this.ressourcesService.findAllForManager(promotionId, parsedType);
   }
 
-  @Get('me')
-  @Roles(Role.APPRENANT)
-  @ApiOperation({
-    summary: 'Lister les ressources de la promotion de l’apprenant connecté',
-  })
-  async findMine(
-    @CurrentUser() currentUser: { sub: string },
-  ): Promise<Ressource[]> {
-    return this.ressourcesService.findMine(currentUser.sub);
-  }
-
-  @Get(':id/download')
+  @Get(':id/telecharger')
   @Roles(Role.SUPER_ADMIN, Role.FORMATEUR, Role.APPRENANT)
   @ApiOperation({ summary: 'Télécharger une ressource' })
   async download(
