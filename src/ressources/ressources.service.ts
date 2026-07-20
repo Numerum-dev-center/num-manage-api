@@ -74,9 +74,15 @@ export class RessourcesService {
     return this.ressourceRepository.save(ressource);
   }
 
-  async findAllForManager(promotionId?: string): Promise<Ressource[]> {
+  async findAllForManager(
+    promotionId?: string,
+    type?: RessourceType,
+  ): Promise<Ressource[]> {
     return this.ressourceRepository.find({
-      where: promotionId ? { promotionId } : {},
+      where: {
+        ...(promotionId ? { promotionId } : {}),
+        ...(type ? { type } : {}),
+      },
       relations: { promotion: true, uploadedBy: true },
       order: { createdAt: 'DESC' },
     });

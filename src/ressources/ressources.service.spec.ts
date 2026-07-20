@@ -225,6 +225,20 @@ describe('RessourcesService', () => {
     });
   });
 
+  describe('findAllForManager', () => {
+    it('filtre par promotion et par type', async () => {
+      mockRessourceRepository.find.mockResolvedValue([]);
+
+      await service.findAllForManager('promo-A', RessourceType.LIEN);
+
+      expect(mockRessourceRepository.find).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { promotionId: 'promo-A', type: RessourceType.LIEN },
+        }),
+      );
+    });
+  });
+
   describe('remove', () => {
     it('ne tente pas de supprimer un fichier disque pour une ressource de type lien', async () => {
       mockRessourceRepository.findOne.mockResolvedValue({

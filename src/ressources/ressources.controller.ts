@@ -68,12 +68,17 @@ export class RessourcesController {
   @Get()
   @Roles(Role.SUPER_ADMIN, Role.FORMATEUR)
   @ApiOperation({
-    summary: 'Lister les ressources (filtrable par promotion)',
+    summary: 'Lister les ressources (filtrable par promotion et par type)',
   })
   async findAll(
     @Query('promotionId') promotionId?: string,
+    @Query('type') type?: string,
   ): Promise<Ressource[]> {
-    return this.ressourcesService.findAllForManager(promotionId);
+    const validTypes: string[] = Object.values(RessourceType);
+    const parsedType = validTypes.includes(type ?? '')
+      ? (type as RessourceType)
+      : undefined;
+    return this.ressourcesService.findAllForManager(promotionId, parsedType);
   }
 
   @Get('me')
