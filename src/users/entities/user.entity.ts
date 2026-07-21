@@ -52,6 +52,10 @@ export class User {
   phoneNumber?: string;
 
   @Expose()
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  specialite?: string | null;
+
+  @Expose()
   @ManyToOne(() => Promotion, (promotion) => promotion.apprenants, {
     nullable: true,
   })

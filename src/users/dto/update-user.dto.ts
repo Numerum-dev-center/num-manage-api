@@ -16,4 +16,14 @@ export class UpdateUserDto {
   @IsOptional()
   @IsEmail()
   email?: string;
+
+  @ApiProperty({ example: '+22836145678', required: false })
+  @IsOptional()
+  @IsString()
+  phoneNumber?: string;
+
+  @ApiProperty({ example: 'Développeur Full-Stack', required: false })
+  @IsOptional()
+  @IsString()
+  specialite?: string;
 }
