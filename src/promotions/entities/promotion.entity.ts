@@ -17,7 +17,7 @@ export class Promotion {
   id!: string;
 
   @Expose()
-  @Column({ type: 'varchar', length: 255 })
+  @Column({ type: 'varchar', length: 255, unique: true })
   name!: string;
 
   @Expose()

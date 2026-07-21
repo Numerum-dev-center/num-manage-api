@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -25,6 +26,7 @@ export class PromotionsService {
     if (createPromotionDto.formateurId) {
       await this.validateFormateurId(createPromotionDto.formateurId);
     }
+    await this.validateUniqueName(createPromotionDto.name);
     const promotion = this.promotionRepository.create(createPromotionDto);
     return this.promotionRepository.save(promotion);
   }
@@ -55,11 +57,28 @@ export class PromotionsService {
       await this.validateFormateurId(updatePromotionDto.formateurId);
     }
     await this.findOne(id);
+    if (updatePromotionDto.name) {
+      await this.validateUniqueName(updatePromotionDto.name, id);
+    }
     // Utilise une mise à jour directe par colonnes plutôt qu'un Object.assign +
     // save() sur l'entité : la relation `formateur` chargée par findOne() garderait
     // sinon sa valeur périmée et écraserait le nouveau formateurId lors du save().
     await this.promotionRepository.update(id, updatePromotionDto);
     return this.findOne(id);
+  }
+
+  private async validateUniqueName(
+    name: string,
+    excludeId?: string,
+  ): Promise<void> {
+    const existing = await this.promotionRepository.findOne({
+      where: { name },
+    });
+    if (existing && existing.id !== excludeId) {
+      throw new ConflictException(
+        `Une promotion nommée "${name}" existe déjà`,
+      );
+    }
   }
 
   private async validateFormateurId(formateurId: string): Promise<void> {
@@ -79,6 +98,12 @@ export class PromotionsService {
   async archive(id: string): Promise<Promotion> {
     const promotion = await this.findOne(id);
     promotion.isArchived = true;
+    return this.promotionRepository.save(promotion);
+  }
+
+  async unarchive(id: string): Promise<Promotion> {
+    const promotion = await this.findOne(id);
+    promotion.isArchived = false;
     return this.promotionRepository.save(promotion);
   }
 

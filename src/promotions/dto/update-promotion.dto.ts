@@ -25,8 +25,14 @@ export class UpdatePromotionDto {
   @IsDateString()
   endDate?: string;
 
-  @ApiProperty({ example: 'b3f1c9a0-...', required: false, description: "ID de l'utilisateur Formateur responsable" })
+  @ApiProperty({
+    example: 'b3f1c9a0-...',
+    required: false,
+    nullable: true,
+    description:
+      "ID de l'utilisateur Formateur responsable ; envoyer null pour retirer le formateur assigné",
+  })
   @IsOptional()
   @IsUUID()
-  formateurId?: string;
+  formateurId?: string | null;
 }

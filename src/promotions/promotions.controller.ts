@@ -68,6 +68,12 @@ export class PromotionsController {
     return this.promotionsService.archive(id);
   }
 
+  @Patch(':id/unarchive')
+  @ApiOperation({ summary: 'Réactiver une promotion archivée' })
+  async unarchive(@Param('id') id: string): Promise<Promotion> {
+    return this.promotionsService.unarchive(id);
+  }
+
   @Patch(':id/apprenants')
   @ApiOperation({ summary: 'Affecter des apprenants à une promotion' })
   async assignApprenants(
