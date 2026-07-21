@@ -1,7 +1,7 @@
 // annonces.service.spec.ts
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { NotFoundException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { AnnoncesService } from './annonces.service';
 import { Annonce } from './entities/annonce.entity';
 import { Promotion } from '../promotions/entities/promotion.entity';
@@ -59,6 +59,20 @@ describe('AnnoncesService', () => {
           'formateur-1',
         ),
       ).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it('refuse de publier une annonce sur une promotion archivée', async () => {
+      mockPromotionRepository.findOne.mockResolvedValue({
+        id: 'promo-A',
+        isArchived: true,
+      });
+
+      await expect(
+        service.create(
+          { promotionId: 'promo-A', title: 'Titre', content: 'Contenu' },
+          'formateur-1',
+        ),
+      ).rejects.toBeInstanceOf(BadRequestException);
     });
 
     it('crée une annonce ciblée sur la promotion', async () => {

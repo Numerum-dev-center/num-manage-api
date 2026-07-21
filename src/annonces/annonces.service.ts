@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Annonce } from './entities/annonce.entity';
@@ -26,6 +30,11 @@ export class AnnoncesService {
     });
     if (!promotion) {
       throw new NotFoundException(`Promotion ${dto.promotionId} non trouvée`);
+    }
+    if (promotion.isArchived) {
+      throw new BadRequestException(
+        'Impossible de publier une annonce sur une promotion archivée',
+      );
     }
 
     const annonce = this.annonceRepository.create({
