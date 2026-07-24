@@ -20,8 +20,8 @@ export class JwtAuthGuard implements CanActivate {
       const payload = await this.jwtService.verifyAsync(token);
       request['user'] = payload;
       return true;
-    } catch(error) {
-       // console.log('Erreur JWT:', error.message);
+    } catch (error) {
+      // console.log('Erreur JWT:', error.message);
       throw new UnauthorizedException('Token invalide');
     }
   }
