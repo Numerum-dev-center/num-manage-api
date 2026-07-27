@@ -1,4 +1,38 @@
-import { PartialType } from '@nestjs/swagger';
-import { CreatePromotionDto } from './create-promotion.dto';
+import { IsDateString, IsOptional, IsString, IsUUID } from 'class-validator';
+import { ApiProperty } from '@nestjs/swagger';
 
-export class UpdatePromotionDto extends PartialType(CreatePromotionDto) {}
+export class UpdatePromotionDto {
+  @ApiProperty({ example: 'Promotion Dev Web 2026', required: false })
+  @IsOptional()
+  @IsString()
+  name?: string;
+
+  @ApiProperty({
+    example: 'Formation développement web full-stack',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  description?: string;
+
+  @ApiProperty({ example: '2026-01-12', required: false })
+  @IsOptional()
+  @IsDateString()
+  startDate?: string;
+
+  @ApiProperty({ example: '2026-12-19', required: false })
+  @IsOptional()
+  @IsDateString()
+  endDate?: string;
+
+  @ApiProperty({
+    example: 'b3f1c9a0-...',
+    required: false,
+    nullable: true,
+    description:
+      "ID de l'utilisateur Formateur responsable ; envoyer null pour retirer le formateur assigné",
+  })
+  @IsOptional()
+  @IsUUID()
+  formateurId?: string | null;
+}

@@ -6,12 +6,13 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
-import { ConfigService } from '@nestjs/config';
 import { Response } from 'express';
 import * as bcrypt from 'bcrypt';
 import { User } from '../users/entities/user.entity';
+import { Role } from '../common/enums/role.enum';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
+import { GoogleProfile } from './strategies/google.strategy';
 
 @Injectable()
 export class AuthService {
@@ -19,7 +20,6 @@ export class AuthService {
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
     private readonly jwtService: JwtService,
-    private readonly configService: ConfigService,
   ) {}
 
   async register(registerDto: RegisterDto, res: Response) {
@@ -95,7 +95,7 @@ export class AuthService {
     return this.jwtService.sign(payload, {
       secret: process.env.JWT_REFRESH_SECRET!,
       expiresIn: (process.env.JWT_REFRESH_EXPIRES_IN! ?? '7d') as any,
-    } as any);
+    });
   }
 
   setRefreshTokenCookie(res: Response, refreshToken: string): void {
@@ -103,10 +103,9 @@ export class AuthService {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'strict',
-      maxAge: 7 * 24 * 60 * 60 * 1000,
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 jours en ms
     });
   }
-
   async refresh(req: any, res: Response) {
     const token = req.cookies?.refreshToken;
     if (!token) {
@@ -139,5 +138,44 @@ export class AuthService {
       throw new UnauthorizedException('Utilisateur introuvable');
     }
     return user;
+  }
+
+  async loginWithGoogle(
+    googleProfile: GoogleProfile,
+    res: Response,
+  ): Promise<void> {
+    let user = await this.userRepository.findOne({
+      where: { googleId: googleProfile.googleId },
+    });
+
+    if (!user) {
+      user = await this.userRepository.findOne({
+        where: { email: googleProfile.email },
+      });
+    }
+
+    if (!user) {
+      user = this.userRepository.create({
+        email: googleProfile.email,
+        firstname: googleProfile.firstname,
+        lastname: googleProfile.lastname,
+        googleId: googleProfile.googleId,
+        password: null,
+        role: Role.APPRENANT,
+      });
+      user = await this.userRepository.save(user);
+    } else if (user.googleId !== googleProfile.googleId) {
+      user.googleId = googleProfile.googleId;
+      user = await this.userRepository.save(user);
+    }
+
+    const accessToken = this.generateAccessToken(user);
+    const refreshToken = this.generateRefreshToken(user);
+    this.setRefreshTokenCookie(res, refreshToken);
+
+    const frontendUrl = process.env.FRONTEND_URL!.split(',')[0];
+    const redirectUrl = new URL('/auth/google/callback', frontendUrl);
+    redirectUrl.searchParams.set('token', accessToken);
+    res.redirect(redirectUrl.toString());
   }
 }
