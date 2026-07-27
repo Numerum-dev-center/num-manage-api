@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
@@ -19,7 +23,9 @@ export class UsersService {
       where: { email: createUserDto.email },
     });
     if (existingUser) {
-      throw new ConflictException(`L'email ${createUserDto.email} est déjà utilisé`);
+      throw new ConflictException(
+        `L'email ${createUserDto.email} est déjà utilisé`,
+      );
     }
 
     // Hasher le password
@@ -32,12 +38,16 @@ export class UsersService {
   }
 
   async findAll(): Promise<User[]> {
-    return this.userRepository.find({ where: { isDeleted: false } });
+    return this.userRepository.find({
+      where: { isDeleted: false },
+      relations: { promotion: true },
+    });
   }
 
   async findOne(id: string): Promise<User> {
     const user = await this.userRepository.findOne({
       where: { id, isDeleted: false },
+      relations: { promotion: true },
     });
     if (!user) {
       throw new NotFoundException(`Utilisateur ${id} non trouvé`);
@@ -47,6 +57,16 @@ export class UsersService {
 
   async update(id: string, updateUserDto: UpdateUserDto): Promise<User> {
     const user = await this.findOne(id);
+    if (updateUserDto.email && updateUserDto.email !== user.email) {
+      const existingUser = await this.userRepository.findOne({
+        where: { email: updateUserDto.email },
+      });
+      if (existingUser) {
+        throw new ConflictException(
+          `L'email ${updateUserDto.email} est déjà utilisé`,
+        );
+      }
+    }
     Object.assign(user, updateUserDto);
     return this.userRepository.save(user);
   }
@@ -64,6 +84,9 @@ export class UsersService {
   }
 
   async validatePassword(user: User, password: string): Promise<boolean> {
+    if (!user.password) {
+      return false;
+    }
     return bcrypt.compare(password, user.password);
   }
 }

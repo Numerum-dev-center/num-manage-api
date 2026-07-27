@@ -1,11 +1,17 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { Promotion } from './entities/promotion.entity';
+import { User } from '../users/entities/user.entity';
+import { Role } from '../common/enums/role.enum';
 import { CreatePromotionDto } from './dto/create-promotion.dto';
 import { UpdatePromotionDto } from './dto/update-promotion.dto';
-import { User } from '../users/entities/user.entity';
-import { Student } from '../students/entities/student.entity';
+import { AssignApprenantsDto } from './dto/assign-apprenants.dto';
 
 @Injectable()
 export class PromotionsService {
@@ -14,106 +20,162 @@ export class PromotionsService {
     private readonly promotionRepository: Repository<Promotion>,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
-    @InjectRepository(Student)
-    private readonly studentRepository: Repository<Student>,
   ) {}
 
-  async create(createPromotionDto: CreatePromotionDto) {
-    let formateur: User | undefined;
-
+  async create(createPromotionDto: CreatePromotionDto): Promise<Promotion> {
     if (createPromotionDto.formateurId) {
-      const found = await this.userRepository.findOne({
-        where: { id: createPromotionDto.formateurId },
-      });
-      if (!found) throw new NotFoundException('Formateur introuvable');
-      formateur = found;
+      await this.validateFormateurId(createPromotionDto.formateurId);
     }
-
-    const promotion = this.promotionRepository.create({
-      ...createPromotionDto,
-      formateur,
-    });
-
+    await this.validateUniqueName(createPromotionDto.name);
+    const promotion = this.promotionRepository.create(createPromotionDto);
     return this.promotionRepository.save(promotion);
   }
 
-  async findAll() {
-    const promotions = await this.promotionRepository.find({
-      relations: { formateur: true },
+  async findAll(includeArchived = false): Promise<Promotion[]> {
+    return this.promotionRepository.find({
+      where: includeArchived ? {} : { isArchived: false },
+      relations: { apprenants: true, formateur: true },
     });
-
-    const result = await Promise.all(
-      promotions.map(async (promotion) => {
-        const membresCount = await this.studentRepository.count({
-          where: { promotion: { id: promotion.id } },
-        });
-        return { ...promotion, membresCount };
-      }),
-    );
-
-    return result;
   }
 
-  async findOne(id: string) {
+  async findOne(id: string): Promise<Promotion> {
     const promotion = await this.promotionRepository.findOne({
       where: { id },
-      relations: { formateur: true },
+      relations: { apprenants: true, formateur: true },
     });
-    if (!promotion) throw new NotFoundException('Promotion introuvable');
+    if (!promotion) {
+      throw new NotFoundException(`Promotion ${id} non trouvée`);
+    }
     return promotion;
   }
 
-  async update(id: string, updatePromotionDto: UpdatePromotionDto) {
-    const promotion = await this.findOne(id);
-
-    if (promotion.isArchived) {
-      throw new BadRequestException('Impossible de modifier une promotion archivée');
-    }
-
+  async update(
+    id: string,
+    updatePromotionDto: UpdatePromotionDto,
+  ): Promise<Promotion> {
     if (updatePromotionDto.formateurId) {
-      const formateur = await this.userRepository.findOne({
-        where: { id: updatePromotionDto.formateurId },
-      });
-      if (!formateur) throw new NotFoundException('Formateur introuvable');
-      promotion.formateur = formateur;
+      await this.validateFormateurId(updatePromotionDto.formateurId);
     }
-
-    Object.assign(promotion, updatePromotionDto);
-    return this.promotionRepository.save(promotion);
+    await this.findOne(id);
+    if (updatePromotionDto.name) {
+      await this.validateUniqueName(updatePromotionDto.name, id);
+    }
+    // Utilise une mise à jour directe par colonnes plutôt qu'un Object.assign +
+    // save() sur l'entité : la relation `formateur` chargée par findOne() garderait
+    // sinon sa valeur périmée et écraserait le nouveau formateurId lors du save().
+    await this.promotionRepository.update(id, updatePromotionDto);
+    return this.findOne(id);
   }
 
-  async archive(id: string) {
+  private async validateUniqueName(
+    name: string,
+    excludeId?: string,
+  ): Promise<void> {
+    const existing = await this.promotionRepository.findOne({
+      where: { name },
+    });
+    if (existing && existing.id !== excludeId) {
+      throw new ConflictException(
+        `Une promotion nommée "${name}" existe déjà`,
+      );
+    }
+  }
+
+  private async validateFormateurId(formateurId: string): Promise<void> {
+    const formateur = await this.userRepository.findOne({
+      where: { id: formateurId, isDeleted: false },
+    });
+    if (!formateur) {
+      throw new BadRequestException(`Formateur ${formateurId} introuvable`);
+    }
+    if (formateur.role !== Role.FORMATEUR) {
+      throw new BadRequestException(
+        `L'utilisateur ${formateurId} n'a pas le rôle formateur`,
+      );
+    }
+  }
+
+  async archive(id: string): Promise<Promotion> {
     const promotion = await this.findOne(id);
     promotion.isArchived = true;
     return this.promotionRepository.save(promotion);
   }
 
-  async addApprenant(promotionId: string, studentId: string) {
-    const promotion = await this.promotionRepository.findOne({
-      where: { id: promotionId },
-    });
-    if (!promotion) throw new NotFoundException('Promotion introuvable');
-    if (promotion.isArchived) throw new BadRequestException('Impossible d\'affecter à une promotion archivée');
-
-    const student = await this.studentRepository.findOne({
-      where: { id: studentId },
-    });
-    if (!student) throw new NotFoundException('Apprenant introuvable');
-
-    await this.studentRepository
-      .createQueryBuilder()
-      .relation(Student, 'promotion')
-      .of(student.id)
-      .set(promotion.id);
-
-    return this.studentRepository.findOne({
-      where: { id: studentId },
-      relations: { user: true, promotion: true },
-    });
+  async unarchive(id: string): Promise<Promotion> {
+    const promotion = await this.findOne(id);
+    promotion.isArchived = false;
+    return this.promotionRepository.save(promotion);
   }
 
-  async remove(id: string) {
+  async assignApprenants(
+    id: string,
+    dto: AssignApprenantsDto,
+  ): Promise<Promotion> {
     const promotion = await this.findOne(id);
-    return this.promotionRepository.remove(promotion);
+    if (promotion.isArchived) {
+      throw new BadRequestException(
+        'Impossible d’affecter des apprenants à une promotion archivée',
+      );
+    }
+
+    const apprenants = await this.userRepository.find({
+      where: { id: In(dto.apprenantIds), isDeleted: false },
+    });
+    if (apprenants.length !== dto.apprenantIds.length) {
+      throw new BadRequestException(
+        'Un ou plusieurs apprenants sont introuvables',
+      );
+    }
+    const nonApprenant = apprenants.find(
+      (user) => user.role !== Role.APPRENANT,
+    );
+    if (nonApprenant) {
+      throw new BadRequestException(
+        `L'utilisateur ${nonApprenant.id} n'a pas le rôle apprenant`,
+      );
+    }
+
+    for (const apprenant of apprenants) {
+      apprenant.promotionId = promotion.id;
+    }
+    await this.userRepository.save(apprenants);
+
+    return this.findOne(id);
+  }
+
+  async removeApprenant(id: string, userId: string): Promise<Promotion> {
+    const promotion = await this.findOne(id);
+    const apprenant = await this.userRepository.findOne({
+      where: { id: userId, isDeleted: false, promotionId: id },
+    });
+    if (!apprenant) {
+      throw new NotFoundException(
+        `Apprenant ${userId} non trouvé dans la promotion ${id}`,
+      );
+    }
+    apprenant.promotionId = null;
+    await this.userRepository.save(apprenant);
+
+    return this.findOne(promotion.id);
+  }
+
+  async findMyPromotion(
+    userId: string,
+  ): Promise<{ promotion: Promotion | null; camarades: User[] }> {
+    const user = await this.userRepository.findOne({
+      where: { id: userId, isDeleted: false },
+      relations: { promotion: { apprenants: true } },
+    });
+    if (!user) {
+      throw new NotFoundException(`Utilisateur ${userId} non trouvé`);
+    }
+    if (!user.promotion) {
+      return { promotion: null, camarades: [] };
+    }
+
+    const camarades = user.promotion.apprenants.filter(
+      (apprenant) => apprenant.id !== userId,
+    );
+    return { promotion: user.promotion, camarades };
   }
 }

@@ -19,7 +19,10 @@ async function seed() {
     return;
   }
 
-  const hashedPassword = await bcrypt.hash(process.env.SEED_ADMIN_PASSWORD!, 10);
+  const hashedPassword = await bcrypt.hash(
+    process.env.SEED_ADMIN_PASSWORD!,
+    10,
+  );
 
   const superAdmin = userRepository.create({
     firstname: 'Super',

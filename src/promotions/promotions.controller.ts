@@ -1,69 +1,94 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, HttpCode, HttpStatus } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  Patch,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { PromotionsService } from './promotions.service';
 import { CreatePromotionDto } from './dto/create-promotion.dto';
 import { UpdatePromotionDto } from './dto/update-promotion.dto';
+import { AssignApprenantsDto } from './dto/assign-apprenants.dto';
+import { Promotion } from './entities/promotion.entity';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { Role } from '../common/enums/role.enum';
 
 @ApiTags('promotions')
+@Controller('promotions')
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles(Role.SUPER_ADMIN, Role.FORMATEUR)
 @ApiBearerAuth()
-@Controller('admin/promotions')
 export class PromotionsController {
   constructor(private readonly promotionsService: PromotionsService) {}
 
   @Post()
-  @Roles(Role.SUPER_ADMIN, Role.FORMATEUR)
   @HttpCode(HttpStatus.CREATED)
-  @ApiOperation({ summary: 'Créer une promotion' })
-  create(@Body() createPromotionDto: CreatePromotionDto) {
+  @ApiOperation({ summary: 'Créer une nouvelle promotion' })
+  async create(
+    @Body() createPromotionDto: CreatePromotionDto,
+  ): Promise<Promotion> {
     return this.promotionsService.create(createPromotionDto);
   }
 
   @Get()
-  @Roles(Role.SUPER_ADMIN, Role.FORMATEUR)
-  @ApiOperation({ summary: 'Lister toutes les promotions' })
-  findAll() {
-    return this.promotionsService.findAll();
+  @ApiOperation({ summary: 'Récupérer toutes les promotions' })
+  async findAll(
+    @Query('includeArchived') includeArchived?: string,
+  ): Promise<Promotion[]> {
+    return this.promotionsService.findAll(includeArchived === 'true');
   }
 
   @Get(':id')
-  @Roles(Role.SUPER_ADMIN, Role.FORMATEUR)
-  @ApiOperation({ summary: 'Récupérer une promotion' })
-  findOne(@Param('id') id: string) {
+  @ApiOperation({ summary: 'Récupérer une promotion par ID' })
+  async findOne(@Param('id') id: string): Promise<Promotion> {
     return this.promotionsService.findOne(id);
   }
 
   @Patch(':id')
-  @Roles(Role.SUPER_ADMIN, Role.FORMATEUR)
-  @ApiOperation({ summary: 'Modifier une promotion' })
-  update(@Param('id') id: string, @Body() updatePromotionDto: UpdatePromotionDto) {
+  @ApiOperation({ summary: 'Mettre à jour une promotion' })
+  async update(
+    @Param('id') id: string,
+    @Body() updatePromotionDto: UpdatePromotionDto,
+  ): Promise<Promotion> {
     return this.promotionsService.update(id, updatePromotionDto);
   }
 
   @Patch(':id/archive')
-  @Roles(Role.SUPER_ADMIN)
   @ApiOperation({ summary: 'Archiver une promotion' })
-  archive(@Param('id') id: string) {
+  async archive(@Param('id') id: string): Promise<Promotion> {
     return this.promotionsService.archive(id);
   }
 
-  @Post(':id/apprenants')
-  @Roles(Role.SUPER_ADMIN, Role.FORMATEUR)
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Affecter un apprenant à une promotion' })
-  addApprenant(
-    @Param('id') promotionId: string,
-    @Body('studentId') studentId: string,
-  ) {
-    return this.promotionsService.addApprenant(promotionId, studentId);
+  @Patch(':id/unarchive')
+  @ApiOperation({ summary: 'Réactiver une promotion archivée' })
+  async unarchive(@Param('id') id: string): Promise<Promotion> {
+    return this.promotionsService.unarchive(id);
   }
 
-  @Delete(':id')
-  @Roles(Role.SUPER_ADMIN)
-  @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({ summary: 'Supprimer une promotion' })
-  remove(@Param('id') id: string) {
-    return this.promotionsService.remove(id);
+  @Patch(':id/apprenants')
+  @ApiOperation({ summary: 'Affecter des apprenants à une promotion' })
+  async assignApprenants(
+    @Param('id') id: string,
+    @Body() assignApprenantsDto: AssignApprenantsDto,
+  ): Promise<Promotion> {
+    return this.promotionsService.assignApprenants(id, assignApprenantsDto);
+  }
+
+  @Delete(':id/apprenants/:userId')
+  @ApiOperation({ summary: 'Retirer un apprenant d’une promotion' })
+  async removeApprenant(
+    @Param('id') id: string,
+    @Param('userId') userId: string,
+  ): Promise<Promotion> {
+    return this.promotionsService.removeApprenant(id, userId);
   }
 }
