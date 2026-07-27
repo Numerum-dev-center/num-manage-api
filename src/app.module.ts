@@ -6,7 +6,10 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
+import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
+import { RolesGuard } from './common/guards/roles.guard';
 import { PromotionsModule } from './promotions/promotions.module';
+import { StudentsModule } from './students/students.module';
 import { MonEspaceModule } from './mon-espace/mon-espace.module';
 import { RessourcesModule } from './ressources/ressources.module';
 import { AnnoncesModule } from './annonces/annonces.module';
@@ -32,6 +35,7 @@ import { AnnoncesModule } from './annonces/annonces.module';
     AuthModule,
     UsersModule,
     PromotionsModule,
+    StudentsModule,
     MonEspaceModule,
     RessourcesModule,
     AnnoncesModule,
