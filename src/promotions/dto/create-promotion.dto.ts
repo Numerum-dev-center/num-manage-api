@@ -1,26 +1,41 @@
+import {
+  IsDateString,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  IsUUID,
+} from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsNotEmpty, IsDateString, IsOptional, IsUUID } from 'class-validator';
 
 export class CreatePromotionDto {
-  @ApiProperty()
-  @IsString()
+  @ApiProperty({ example: 'Promotion Dev Web 2026' })
   @IsNotEmpty()
-  nom!: string;
+  @IsString()
+  name!: string;
 
-  @ApiProperty({ required: false })
+  @ApiProperty({
+    example: 'Formation développement web full-stack',
+    required: false,
+  })
   @IsOptional()
   @IsString()
   description?: string;
 
-  @ApiProperty()
+  @ApiProperty({ example: '2026-01-12', required: false })
+  @IsOptional()
   @IsDateString()
-  startDate!: string;
+  startDate?: string;
 
-  @ApiProperty()
+  @ApiProperty({ example: '2026-12-19', required: false })
+  @IsOptional()
   @IsDateString()
-  endDate!: string;
+  endDate?: string;
 
-  @ApiProperty({ required: false })
+  @ApiProperty({
+    example: 'b3f1c9a0-...',
+    required: false,
+    description: "ID de l'utilisateur Formateur responsable",
+  })
   @IsOptional()
   @IsUUID()
   formateurId?: string;
