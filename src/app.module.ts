@@ -20,17 +20,24 @@ import { AnnoncesModule } from './annonces/annonces.module';
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
-      useFactory: (config: ConfigService) => ({
-        type: 'mysql',
-        host: config.get<string>('DB_HOST'),
-        port: config.get<number>('DB_PORT'),
-        username: config.get<string>('DB_USERNAME'),
-        password: config.get<string>('DB_PASSWORD'),
-        database: config.get<string>('DB_DATABASE'),
-        entities: [__dirname + '/../**/*.entity{.ts,.js}'],
-        synchronize: true,
-        autoLoadEntities: true,
-      }),
+      useFactory: (config: ConfigService) => {
+        const host = config.get<string>('DB_HOST');
+
+        return {
+          type: 'mysql',
+          host: host,
+          port: config.get<number>('DB_PORT'),
+          username: config.get<string>('DB_USERNAME'),
+          password: config.get<string>('DB_PASSWORD'),
+          database: config.get<string>('DB_DATABASE'),
+          autoLoadEntities: true,
+          synchronize: true,
+          // Support SSL obligatoire pour Aiven
+          ssl: host?.includes('aivencloud.com')
+            ? { rejectUnauthorized: false }
+            : false,
+        };
+      },
     }),
     AuthModule,
     UsersModule,
