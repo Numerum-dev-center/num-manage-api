@@ -1,0 +1,39 @@
+# Dépendances locales
+node_modules/
+.pnpm-store/
+
+# Builds et fichiers de sortie
+dist/
+build/
+
+# Fichiers d'environnement et secrets
+.env
+.env.*
+!.env.example
+
+# Versioning Git
+.git/
+.gitignore
+
+# Fichiers de logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Fichiers système et éditeurs
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Fichiers de tests et de couverture
+coverage/
+*.spec.ts
+*.test.ts
+test/
+
+# Documentation et divers
+README.md
+*.md
