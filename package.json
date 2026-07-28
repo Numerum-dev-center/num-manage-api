@@ -39,6 +39,7 @@
     "class-validator": "^0.15.1",
     "cookie-parser": "^1.4.7",
     "hbs": "^4.2.1",
+    "multer": "^2.2.0",
     "mysql2": "^3.22.5",
     "passport": "^0.7.0",
     "passport-google-oauth20": "^2.0.0",
