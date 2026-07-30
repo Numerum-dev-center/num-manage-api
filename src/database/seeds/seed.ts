@@ -1,42 +1,89 @@
 import { NestFactory } from '@nestjs/core';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
+import { Repository } from 'typeorm';
 import { AppModule } from '../../app.module';
 import { User } from '../../users/entities/user.entity';
 import { Role } from '../../common/enums/role.enum';
 
-async function seed() {
-  const app = await NestFactory.createApplicationContext(AppModule);
-  const userRepository = app.get(getRepositoryToken(User));
+interface SeedAccount {
+  label: string;
+  firstname: string;
+  lastname: string;
+  role: Role;
+  emailEnvVar: string;
+  passwordEnvVar: string;
+}
 
-  const existingAdmin = await userRepository.findOne({
-    where: { email: process.env.SEED_ADMIN_EMAIL },
-  });
+const ACCOUNTS: SeedAccount[] = [
+  {
+    label: 'Super-admin',
+    firstname: 'Super',
+    lastname: 'Admin',
+    role: Role.SUPER_ADMIN,
+    emailEnvVar: 'SEED_ADMIN_EMAIL',
+    passwordEnvVar: 'SEED_ADMIN_PASSWORD',
+  },
+  {
+    label: 'Formateur',
+    firstname: 'Seed',
+    lastname: 'Formateur',
+    role: Role.FORMATEUR,
+    emailEnvVar: 'SEED_MANAGER_EMAIL',
+    passwordEnvVar: 'SEED_MANAGER_PASSWORD',
+  },
+  {
+    label: 'Apprenant',
+    firstname: 'Seed',
+    lastname: 'Apprenant',
+    role: Role.APPRENANT,
+    emailEnvVar: 'SEED_STUDENT_EMAIL',
+    passwordEnvVar: 'SEED_STUDENT_PASSWORD',
+  },
+];
 
-  if (existingAdmin) {
-    console.log('Le super-admin existe déjà, seed ignoré.');
-    await app.close();
+async function seedAccount(
+  userRepository: Repository<User>,
+  account: SeedAccount,
+): Promise<void> {
+  const email = process.env[account.emailEnvVar];
+  const password = process.env[account.passwordEnvVar];
+
+  if (!email || !password) {
+    console.log(
+      `${account.label} ignoré : ${account.emailEnvVar}/${account.passwordEnvVar} non définies.`,
+    );
     return;
   }
 
-  const hashedPassword = await bcrypt.hash(
-    process.env.SEED_ADMIN_PASSWORD!,
-    10,
-  );
+  const existing = await userRepository.findOne({ where: { email } });
+  if (existing) {
+    console.log(`${account.label} existe déjà, seed ignoré.`);
+    return;
+  }
 
-  const superAdmin = userRepository.create({
-    firstname: 'Super',
-    lastname: 'Admin',
-    email: process.env.SEED_ADMIN_EMAIL,
+  const hashedPassword = await bcrypt.hash(password, 10);
+  const user = userRepository.create({
+    firstname: account.firstname,
+    lastname: account.lastname,
+    email,
     password: hashedPassword,
-    role: Role.SUPER_ADMIN,
+    role: account.role,
   });
+  await userRepository.save(user);
 
-  await userRepository.save(superAdmin);
+  console.log(`${account.label} créé avec succès.`);
+  console.log('Email: ' + email);
+  console.log('Mot de passe: ' + password);
+}
 
-  console.log('Super-admin créé avec succès.');
-  console.log('Email: ' + process.env.SEED_ADMIN_EMAIL);
-  console.log('Mot de passe: ' + process.env.SEED_ADMIN_PASSWORD);
+async function seed() {
+  const app = await NestFactory.createApplicationContext(AppModule);
+  const userRepository = app.get<Repository<User>>(getRepositoryToken(User));
+
+  for (const account of ACCOUNTS) {
+    await seedAccount(userRepository, account);
+  }
 
   await app.close();
 }
