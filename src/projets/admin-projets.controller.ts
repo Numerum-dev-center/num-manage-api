@@ -63,6 +63,12 @@ export class AdminProjetsController {
     return this.projetsService.create(dto, currentUser.sub);
   }
 
+  @Get(':id')
+  @ApiOperation({ summary: 'Détails d’un projet avec statut agrégé' })
+  async findOne(@Param('id') id: string): Promise<ProjetAvecStats> {
+    return this.projetsService.findOneForManager(id);
+  }
+
   @Get(':id/soumissions')
   @ApiOperation({ summary: "Lister les soumissions d'un projet (#390)" })
   async findSoumissions(@Param('id') id: string): Promise<Soumission[]> {

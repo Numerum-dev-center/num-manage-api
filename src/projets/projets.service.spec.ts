@@ -119,6 +119,28 @@ describe('ProjetsService', () => {
     });
   });
 
+  describe('findOneForManager', () => {
+    it("lève une NotFoundException si le projet n'existe pas", async () => {
+      mockProjetRepository.findOne.mockResolvedValue(null);
+
+      await expect(service.findOneForManager('inconnu')).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
+    });
+
+    it('retourne le projet avec son statut agrégé', async () => {
+      mockProjetRepository.findOne.mockResolvedValue({
+        id: 'p1',
+        dateLimite: new Date(Date.now() + 86_400_000),
+        promotion: { apprenants: [{ id: 'a1' }] },
+        soumissions: [],
+      });
+
+      const result = await service.findOneForManager('p1');
+      expect(result).toMatchObject({ id: 'p1', statut: StatutProjet.EN_COURS });
+    });
+  });
+
   describe('findAllForManager — statut agrégé (#387)', () => {
     const dateLimiteFuture = new Date(Date.now() + 86_400_000);
     const dateLimitePassee = new Date(Date.now() - 86_400_000);

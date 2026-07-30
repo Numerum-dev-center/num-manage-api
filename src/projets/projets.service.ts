@@ -89,6 +89,21 @@ export class ProjetsService {
     return projets.map((projet) => this.withStats(projet));
   }
 
+  async findOneForManager(id: string): Promise<ProjetAvecStats> {
+    const projet = await this.projetRepository.findOne({
+      where: { id },
+      relations: {
+        promotion: { apprenants: true },
+        createdBy: true,
+        soumissions: true,
+      },
+    });
+    if (!projet) {
+      throw new NotFoundException(`Projet ${id} non trouvé`);
+    }
+    return this.withStats(projet);
+  }
+
   private withStats(projet: Projet): ProjetAvecStats {
     const totalApprenants = projet.promotion?.apprenants?.length ?? 0;
     const soumissions = projet.soumissions ?? [];

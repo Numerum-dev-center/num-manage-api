@@ -33,6 +33,7 @@ describe('Projets (e2e)', () => {
 
     const mockProjetsService = {
       findAllForManager: jest.fn().mockResolvedValue([]),
+      findOneForManager: jest.fn().mockResolvedValue({ id: 'p1' }),
       getFormOptions: jest
         .fn()
         .mockResolvedValue({ formateurs: [], promotions: [] }),
@@ -103,6 +104,13 @@ describe('Projets (e2e)', () => {
           dateLimite: '2026-08-15T23:59:00',
           promotionId: randomUUID(),
         },
+      },
+      {
+        label: 'GET /admin/projets/:id',
+        method: 'get',
+        path: '/admin/projets/p1',
+        allowedRoles: [Role.SUPER_ADMIN, Role.FORMATEUR],
+        successStatus: 200,
       },
       {
         label: 'GET /admin/projets/:id/soumissions',
