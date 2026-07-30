@@ -25,6 +25,7 @@ import type { GoogleProfile } from './strategies/google.strategy';
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
+  @Public()
   @Post('register')
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Créer un compte (email/mot de passe)' })
@@ -35,6 +36,7 @@ export class AuthController {
     return this.authService.register(registerDto, res);
   }
 
+  @Public()
   @Post('login')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Se connecter et obtenir un token JWT' })
