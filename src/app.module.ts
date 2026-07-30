@@ -13,6 +13,7 @@ import { StudentsModule } from './students/students.module';
 import { MonEspaceModule } from './mon-espace/mon-espace.module';
 import { RessourcesModule } from './ressources/ressources.module';
 import { AnnoncesModule } from './annonces/annonces.module';
+import { ProjetsModule } from './projets/projets.module';
 
 @Module({
   imports: [
@@ -46,6 +47,7 @@ import { AnnoncesModule } from './annonces/annonces.module';
     MonEspaceModule,
     RessourcesModule,
     AnnoncesModule,
+    ProjetsModule,
   ],
   controllers: [AppController],
   providers: [
