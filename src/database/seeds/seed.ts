@@ -72,9 +72,10 @@ async function seedAccount(
   });
   await userRepository.save(user);
 
-  console.log(`${account.label} créé avec succès.`);
-  console.log('Email: ' + email);
-  console.log('Mot de passe: ' + password);
+  // Le mot de passe n'est jamais loggé : la personne qui lance le seed l'a
+  // déjà (elle vient de le définir dans les variables d'environnement), et
+  // ces logs finissent dans les journaux de déploiement (Render, CI...).
+  console.log(`${account.label} créé avec succès (${email}).`);
 }
 
 async function seed() {
