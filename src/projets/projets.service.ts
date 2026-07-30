@@ -1,4 +1,8 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Projet } from './entities/projet.entity';
@@ -176,7 +180,10 @@ export class ProjetsService {
     dateLimite: Date,
   ): { statut: StatutProjet; enRetard: boolean } {
     if (!soumission) {
-      return { statut: StatutProjet.EN_COURS, enRetard: new Date() > dateLimite };
+      return {
+        statut: StatutProjet.EN_COURS,
+        enRetard: new Date() > dateLimite,
+      };
     }
     if (soumission.note != null) {
       return { statut: StatutProjet.EVALUE, enRetard: false };

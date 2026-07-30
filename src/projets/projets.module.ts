@@ -11,10 +11,12 @@ import { Promotion } from '../promotions/entities/promotion.entity';
 import { User } from '../users/entities/user.entity';
 
 @Module({
-  imports: [
-    TypeOrmModule.forFeature([Projet, Soumission, Promotion, User]),
+  imports: [TypeOrmModule.forFeature([Projet, Soumission, Promotion, User])],
+  controllers: [
+    AdminProjetsController,
+    ProjetsController,
+    SoumissionsController,
   ],
-  controllers: [AdminProjetsController, ProjetsController, SoumissionsController],
   providers: [ProjetsService, SoumissionsService],
   exports: [ProjetsService, SoumissionsService],
 })

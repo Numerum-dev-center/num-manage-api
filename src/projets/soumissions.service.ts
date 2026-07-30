@@ -44,9 +44,7 @@ export class SoumissionsService {
       where: { id: apprenantId, isDeleted: false },
     });
     if (!apprenant || apprenant.promotionId !== projet.promotionId) {
-      throw new ForbiddenException(
-        "Vous n'êtes pas assigné à ce projet",
-      );
+      throw new ForbiddenException("Vous n'êtes pas assigné à ce projet");
     }
 
     const existante = await this.soumissionRepository.findOne({

@@ -64,9 +64,9 @@ describe('UsersService', () => {
       const result = await service.create(createDto);
 
       expect(result.password).not.toBe(createDto.password);
-      expect(
-        await bcrypt.compare(createDto.password, result.password!),
-      ).toBe(true);
+      expect(await bcrypt.compare(createDto.password, result.password!)).toBe(
+        true,
+      );
     });
   });
 
