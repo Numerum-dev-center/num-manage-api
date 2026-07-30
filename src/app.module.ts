@@ -3,13 +3,13 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { ProjetsService } from './projets.service';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { PromotionsModule } from './promotions/promotions.module';
 import { MonEspaceModule } from './mon-espace/mon-espace.module';
 import { RessourcesModule } from './ressources/ressources.module';
 import { AnnoncesModule } from './annonces/annonces.module';
+import { ProjetsModule } from './projets/projets.module';
 
 @Module({
   imports: [
@@ -35,8 +35,9 @@ import { AnnoncesModule } from './annonces/annonces.module';
     MonEspaceModule,
     RessourcesModule,
     AnnoncesModule,
+    ProjetsModule,
   ],
   controllers: [AppController],
-  providers: [AppService, ProjetsService],
+  providers: [AppService],
 })
 export class AppModule {}
