@@ -21,15 +21,20 @@ async function bootstrap() {
     origin: (origin, callback) => {
       // Autorise les requêtes sans origin (comme Mobile Apps, Postman ou curl)
       if (!origin) return callback(null, true);
-      
+
       // Nettoyage du slash final de l'origin entrante pour comparaison
       const cleanOrigin = origin.replace(/\/$/, '');
-      
+
       if (allowedOrigins.includes(cleanOrigin)) {
         callback(null, true);
       } else {
+        // callback(null, false) refuse proprement (pas de header CORS, le
+        // navigateur bloque) : passer une Error ici la propage jusqu'au
+        // filtre d'exceptions global et transforme un refus CORS normal en
+        // 500 "Erreur interne du serveur" sur TOUTE requête cross-origin
+        // non autorisée, y compris les requêtes légitimes mal configurées.
         console.error(`[CORS Blocked] Origin not allowed: ${origin}`);
-        callback(new Error('Not allowed by CORS'));
+        callback(null, false);
       }
     },
     credentials: true,
