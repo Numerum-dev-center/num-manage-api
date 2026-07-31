@@ -21,10 +21,7 @@ export class AnnoncesService {
     private readonly userRepository: Repository<User>,
   ) {}
 
-  async create(
-    dto: CreateAnnonceDto,
-    createdById: string,
-  ): Promise<Annonce> {
+  async create(dto: CreateAnnonceDto, createdById: string): Promise<Annonce> {
     const promotion = await this.promotionRepository.findOne({
       where: { id: dto.promotionId },
     });
