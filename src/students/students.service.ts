@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Student } from './entities/student.entity';
@@ -26,13 +31,16 @@ export class StudentsService {
     if (!user) throw new NotFoundException('Utilisateur introuvable');
 
     if (user.role !== Role.APPRENANT) {
-      throw new BadRequestException('Cet utilisateur doit avoir le rôle apprenant');
+      throw new BadRequestException(
+        'Cet utilisateur doit avoir le rôle apprenant',
+      );
     }
 
     const existing = await this.studentRepository.findOne({
       where: { user: { id: createStudentDto.userId } },
     });
-    if (existing) throw new ConflictException('Cet utilisateur est déjà un apprenant');
+    if (existing)
+      throw new ConflictException('Cet utilisateur est déjà un apprenant');
 
     let promotion: Promotion | undefined;
     if (createStudentDto.promotionId) {
@@ -40,7 +48,10 @@ export class StudentsService {
         where: { id: createStudentDto.promotionId },
       });
       if (!found) throw new NotFoundException('Promotion introuvable');
-      if (found.isArchived) throw new ConflictException('Impossible d\'affecter à une promotion archivée');
+      if (found.isArchived)
+        throw new ConflictException(
+          "Impossible d'affecter à une promotion archivée",
+        );
       promotion = found;
     }
 
@@ -76,7 +87,10 @@ export class StudentsService {
         where: { id: updateStudentDto.promotionId },
       });
       if (!promotion) throw new NotFoundException('Promotion introuvable');
-      if (promotion.isArchived) throw new ConflictException('Impossible d\'affecter à une promotion archivée');
+      if (promotion.isArchived)
+        throw new ConflictException(
+          "Impossible d'affecter à une promotion archivée",
+        );
       student.promotion = promotion;
     }
 

@@ -13,6 +13,7 @@ import { StudentsModule } from './students/students.module';
 import { MonEspaceModule } from './mon-espace/mon-espace.module';
 import { RessourcesModule } from './ressources/ressources.module';
 import { AnnoncesModule } from './annonces/annonces.module';
+import { ProjetsModule } from './projets/projets.module';
 
 @Module({
   imports: [
@@ -22,6 +23,10 @@ import { AnnoncesModule } from './annonces/annonces.module';
       inject: [ConfigService],
       useFactory: (config: ConfigService) => {
         const host = config.get<string>('DB_HOST');
+        // Le certificat est stocké avec des \n littéraux dans les variables
+        // d'environnement mono-ligne (Render, .env) ; on les reconvertit en
+        // vrais retours à la ligne pour obtenir un PEM valide.
+        const caCert = config.get<string>('DB_CA_CERT')?.replace(/\\n/g, '\n');
 
         return {
           type: 'mysql',
@@ -32,9 +37,11 @@ import { AnnoncesModule } from './annonces/annonces.module';
           database: config.get<string>('DB_DATABASE'),
           autoLoadEntities: true,
           synchronize: true,
-          // Support SSL obligatoire pour Aiven
+          // Aiven exige TLS. On valide le certificat serveur avec la CA du
+          // projet plutôt que de désactiver la vérification (rejectUnauthorized:
+          // false rendait la connexion vulnérable à une interception/MITM).
           ssl: host?.includes('aivencloud.com')
-            ? { rejectUnauthorized: false }
+            ? { ca: caCert, rejectUnauthorized: true }
             : false,
         };
       },
@@ -46,6 +53,7 @@ import { AnnoncesModule } from './annonces/annonces.module';
     MonEspaceModule,
     RessourcesModule,
     AnnoncesModule,
+    ProjetsModule,
   ],
   controllers: [AppController],
   providers: [

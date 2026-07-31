@@ -75,9 +75,7 @@ export class PromotionsService {
       where: { name },
     });
     if (existing && existing.id !== excludeId) {
-      throw new ConflictException(
-        `Une promotion nommée "${name}" existe déjà`,
-      );
+      throw new ConflictException(`Une promotion nommée "${name}" existe déjà`);
     }
   }
 
