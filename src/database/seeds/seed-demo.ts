@@ -1,7 +1,6 @@
 import { NestFactory } from '@nestjs/core';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
-import * as crypto from 'crypto';
 import * as fs from 'fs';
 import * as path from 'path';
 import { Repository } from 'typeorm';
@@ -19,9 +18,9 @@ import { Soumission } from '../../projets/entities/soumission.entity';
  * Seed de démonstration complet : peuple toutes les tables avec un jeu de
  * données réaliste (1 admin, 2 formateurs, 20 apprenants répartis sur 2
  * promotions, annonces, ressources, projets et soumissions variées) pour un
- * test d'équipe partagé (staging/Aiven). Chaque compte a un mot de passe
- * unique généré aléatoirement, jamais loggé en clair dans la console —
- * uniquement écrit dans un fichier local gitignoré à la fin.
+ * test d'équipe partagé (staging/Aiven). Tous les comptes partagent le même
+ * mot de passe (SEED_DEMO_PASSWORD, ou une valeur par défaut) pour que
+ * l'équipe n'ait qu'un seul identifiant à retenir ; seul l'email change.
  *
  * Idempotent par email/nom : peut être relancé sans dupliquer les données.
  */
@@ -31,14 +30,7 @@ const CREDENTIALS_OUTPUT_PATH = path.join(
   '../../../seed-demo-credentials.local.md',
 );
 
-function generatePassword(): string {
-  const charset = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
-  let pwd = '';
-  for (let i = 0; i < 10; i++) {
-    pwd += charset[crypto.randomInt(0, charset.length)];
-  }
-  return `${pwd}!`;
-}
+const SHARED_PASSWORD = process.env.SEED_DEMO_PASSWORD ?? 'Numerum2026!';
 
 interface SeededAccount {
   role: string;
@@ -67,8 +59,7 @@ async function findOrCreateUser(
     return existing;
   }
 
-  const password = generatePassword();
-  const hashedPassword = await bcrypt.hash(password, 10);
+  const hashedPassword = await bcrypt.hash(SHARED_PASSWORD, 10);
   const user = userRepository.create({
     firstname: data.firstname,
     lastname: data.lastname,
@@ -84,7 +75,7 @@ async function findOrCreateUser(
     firstname: data.firstname,
     lastname: data.lastname,
     email: data.email,
-    password,
+    password: SHARED_PASSWORD,
   });
   return saved;
 }
@@ -471,11 +462,12 @@ async function seedDemo() {
       '',
       `Généré le ${new Date().toISOString()}`,
       '',
-      '| Rôle | Prénom | Nom | Email | Mot de passe |',
-      '|------|--------|-----|-------|--------------|',
+      `**Mot de passe commun à tous les comptes : \`${SHARED_PASSWORD}\`**`,
+      '',
+      '| Rôle | Prénom | Nom | Email |',
+      '|------|--------|-----|-------|',
       ...credentials.map(
-        (c) =>
-          `| ${c.role} | ${c.firstname} | ${c.lastname} | ${c.email} | ${c.password} |`,
+        (c) => `| ${c.role} | ${c.firstname} | ${c.lastname} | ${c.email} |`,
       ),
       '',
     ];
