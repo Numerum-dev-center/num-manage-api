@@ -11,14 +11,30 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
-  // Configuration dynamique des origines CORS
-  const frontendUrls = process.env.FRONTEND_URL
-    ? process.env.FRONTEND_URL.split(',')
-    : ['http://localhost:3000'];
+  // 1. Découpage propre des URLs CORS en supprimant les espaces superflus
+  const rawUrls = process.env.FRONTEND_URL || 'http://localhost:3000';
+  const allowedOrigins = rawUrls
+    .split(',')
+    .map((url) => url.trim().replace(/\/$/, '')); // Enlève les espaces et le slash final s'il y en a
 
   app.enableCors({
-    origin: frontendUrls,
+    origin: (origin, callback) => {
+      // Autorise les requêtes sans origin (comme Mobile Apps, Postman ou curl)
+      if (!origin) return callback(null, true);
+      
+      // Nettoyage du slash final de l'origin entrante pour comparaison
+      const cleanOrigin = origin.replace(/\/$/, '');
+      
+      if (allowedOrigins.includes(cleanOrigin)) {
+        callback(null, true);
+      } else {
+        console.error(`[CORS Blocked] Origin not allowed: ${origin}`);
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
     credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
   });
 
   // Documentation Swagger (Accessible sur /docs)
@@ -52,8 +68,9 @@ async function bootstrap() {
   app.useGlobalFilters(new HttpExceptionFilter());
   app.useGlobalInterceptors(new ClassSerializerInterceptor(app.get(Reflector)));
 
+  // 2. Écoute sur 0.0.0.0 (Crucial pour Render/Docker)
   const port = process.env.PORT || 3001;
-  await app.listen(port);
+  await app.listen(port, '0.0.0.0');
   console.log(`Application lancée sur le port : ${port}`);
 }
 bootstrap();
