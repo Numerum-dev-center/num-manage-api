@@ -6,6 +6,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
+import { ConfigService } from '@nestjs/config';
 import { Response } from 'express';
 import * as bcrypt from 'bcrypt';
 import { User } from '../users/entities/user.entity';
@@ -20,6 +21,7 @@ export class AuthService {
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
     private readonly jwtService: JwtService,
+    private readonly configService: ConfigService,
   ) {}
 
   async register(registerDto: RegisterDto, res: Response) {
@@ -98,11 +100,19 @@ export class AuthService {
     });
   }
 
+  // Frontend et API sont sur des origines différentes (Vercel / Render, ou
+  // localhost:3000 / localhost:3001 en dev) : SameSite=Strict ne serait
+  // jamais envoyé sur ces requêtes cross-site, cassant /auth/refresh. None
+  // exige Secure, ce que les navigateurs acceptent aussi sur localhost en HTTP.
+  private static readonly REFRESH_COOKIE_OPTIONS = {
+    httpOnly: true,
+    secure: true,
+    sameSite: 'none' as const,
+  };
+
   setRefreshTokenCookie(res: Response, refreshToken: string): void {
     res.cookie('refreshToken', refreshToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
+      ...AuthService.REFRESH_COOKIE_OPTIONS,
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 jours en ms
     });
   }
@@ -129,7 +139,7 @@ export class AuthService {
   }
 
   logout(res: Response): void {
-    res.clearCookie('refreshToken');
+    res.clearCookie('refreshToken', AuthService.REFRESH_COOKIE_OPTIONS);
   }
 
   async getProfile(userId: string) {

@@ -80,9 +80,9 @@ describe('PromotionsService', () => {
         name: 'Promo A',
       });
 
-      await expect(
-        service.create({ name: 'Promo A' }),
-      ).rejects.toBeInstanceOf(ConflictException);
+      await expect(service.create({ name: 'Promo A' })).rejects.toBeInstanceOf(
+        ConflictException,
+      );
     });
 
     it('crée la promotion si le nom est disponible', async () => {
@@ -112,7 +112,11 @@ describe('PromotionsService', () => {
       mockPromotionRepository.findOne
         .mockResolvedValueOnce({ id: 'p1', name: 'Promo A', isArchived: false }) // findOne(id) dans update()
         .mockResolvedValueOnce({ id: 'p1', name: 'Promo A' }) // validateUniqueName retrouve la même promotion
-        .mockResolvedValueOnce({ id: 'p1', name: 'Promo A', isArchived: false }); // findOne(id) final
+        .mockResolvedValueOnce({
+          id: 'p1',
+          name: 'Promo A',
+          isArchived: false,
+        }); // findOne(id) final
 
       await expect(
         service.update('p1', { name: 'Promo A' }),

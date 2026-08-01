@@ -49,6 +49,9 @@ lerna-debug.log*
 # fichiers téléversés (ressources pédagogiques)
 /uploads
 
+# identifiants générés par le seed de démonstration (jamais à commiter)
+*.local.md
+
 # Runtime data
 pids
 *.pid
