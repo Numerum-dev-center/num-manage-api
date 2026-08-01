@@ -17,26 +17,12 @@ async function bootstrap() {
     .split(',')
     .map((url) => url.trim().replace(/\/$/, '')); // Enlève les espaces et le slash final s'il y en a
 
+  // origin doit être un tableau (ou string/regex), pas une fonction callback :
+  // avec une fonction origin, le préflight OPTIONS d'une origine refusée ne
+  // renvoie jamais la réponse 204 attendue et tombe dans le routeur, qui
+  // répond 404 "Cannot OPTIONS ..." au lieu d'un simple refus CORS silencieux.
   app.enableCors({
-    origin: (origin, callback) => {
-      // Autorise les requêtes sans origin (comme Mobile Apps, Postman ou curl)
-      if (!origin) return callback(null, true);
-
-      // Nettoyage du slash final de l'origin entrante pour comparaison
-      const cleanOrigin = origin.replace(/\/$/, '');
-
-      if (allowedOrigins.includes(cleanOrigin)) {
-        callback(null, true);
-      } else {
-        // callback(null, false) refuse proprement (pas de header CORS, le
-        // navigateur bloque) : passer une Error ici la propage jusqu'au
-        // filtre d'exceptions global et transforme un refus CORS normal en
-        // 500 "Erreur interne du serveur" sur TOUTE requête cross-origin
-        // non autorisée, y compris les requêtes légitimes mal configurées.
-        console.error(`[CORS Blocked] Origin not allowed: ${origin}`);
-        callback(null, false);
-      }
-    },
+    origin: allowedOrigins,
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
