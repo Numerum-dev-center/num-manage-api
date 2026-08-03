@@ -56,6 +56,10 @@ export class User {
   specialite?: string | null;
 
   @Expose()
+  @Column({ type: 'varchar', length: 500, nullable: true })
+  avatarUrl?: string | null;
+
+  @Expose()
   @ManyToOne(() => Promotion, (promotion) => promotion.apprenants, {
     nullable: true,
   })
