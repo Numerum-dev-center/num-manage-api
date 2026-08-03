@@ -6,6 +6,7 @@ import { AnnoncesService } from './annonces.service';
 import { Annonce } from './entities/annonce.entity';
 import { Promotion } from '../promotions/entities/promotion.entity';
 import { User } from '../users/entities/user.entity';
+import { NotificationsService } from '../notifications/notifications.service';
 
 describe('AnnoncesService', () => {
   let service: AnnoncesService;
@@ -19,10 +20,16 @@ describe('AnnoncesService', () => {
   };
   const mockUserRepository = {
     findOne: jest.fn(),
+    find: jest.fn(),
+  };
+  const mockNotificationsService = {
+    notify: jest.fn(),
+    notifyMany: jest.fn(),
   };
 
   beforeEach(async () => {
     jest.clearAllMocks();
+    mockUserRepository.find.mockResolvedValue([]);
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -39,6 +46,7 @@ describe('AnnoncesService', () => {
           provide: getRepositoryToken(User),
           useValue: mockUserRepository,
         },
+        { provide: NotificationsService, useValue: mockNotificationsService },
       ],
     }).compile();
 

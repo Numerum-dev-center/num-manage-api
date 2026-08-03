@@ -8,7 +8,10 @@ import { Repository } from 'typeorm';
 import { Annonce } from './entities/annonce.entity';
 import { Promotion } from '../promotions/entities/promotion.entity';
 import { User } from '../users/entities/user.entity';
+import { Role } from '../common/enums/role.enum';
 import { CreateAnnonceDto } from './dto/create-annonce.dto';
+import { NotificationsService } from '../notifications/notifications.service';
+import { NotificationType } from '../common/enums/notification-type.enum';
 
 @Injectable()
 export class AnnoncesService {
@@ -19,6 +22,7 @@ export class AnnoncesService {
     private readonly promotionRepository: Repository<Promotion>,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   async create(dto: CreateAnnonceDto, createdById: string): Promise<Annonce> {
@@ -40,7 +44,24 @@ export class AnnoncesService {
       promotionId: dto.promotionId,
       createdById,
     });
-    return this.annonceRepository.save(annonce);
+    const saved = await this.annonceRepository.save(annonce);
+
+    const apprenants = await this.userRepository.find({
+      where: {
+        promotionId: dto.promotionId,
+        role: Role.APPRENANT,
+        isDeleted: false,
+      },
+    });
+    await this.notificationsService.notifyMany(
+      apprenants.map((a) => a.id),
+      NotificationType.NOUVELLE_ANNONCE,
+      'Nouvelle annonce',
+      dto.title,
+      '/dashboard/student/annonces',
+    );
+
+    return saved;
   }
 
   async findAllForManager(promotionId?: string): Promise<Annonce[]> {

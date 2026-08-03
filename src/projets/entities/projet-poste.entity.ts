@@ -14,9 +14,11 @@ import { User } from '../../users/entities/user.entity';
 import { PosteProjet } from '../../common/enums/poste-projet.enum';
 
 /**
- * Poste (frontend, backend, ...) qu'occupe un apprenant sur un projet.
- * Indépendant de la Soumission : assignable par le formateur avant même
- * qu'un apprenant ait rendu son travail, et modifiable par l'apprenant lui-même.
+ * Fait foi de l'affectation explicite d'un apprenant à un projet (roster) :
+ * seuls les apprenants ayant une ligne ici sont considérés comme sur le
+ * projet - un projet ne cible plus automatiquement toute la promotion.
+ * Le poste (frontend, backend, ...) est un attribut optionnel de cette
+ * affectation, modifiable par le formateur ou par l'apprenant lui-même.
  */
 @Entity('projet_postes')
 @Unique(['projetId', 'apprenantId'])
@@ -25,7 +27,7 @@ export class ProjetPoste {
   id!: string;
 
   @Expose()
-  @ManyToOne(() => Projet)
+  @ManyToOne(() => Projet, (projet) => projet.postes)
   @JoinColumn({ name: 'projetId' })
   projet!: Projet;
 
@@ -41,8 +43,8 @@ export class ProjetPoste {
   apprenantId!: string;
 
   @Expose()
-  @Column({ type: 'enum', enum: PosteProjet })
-  poste!: PosteProjet;
+  @Column({ type: 'enum', enum: PosteProjet, nullable: true })
+  poste?: PosteProjet | null;
 
   @CreateDateColumn()
   createdAt!: Date;

@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   HttpCode,
   HttpStatus,
@@ -84,16 +85,46 @@ export class AdminProjetsController {
 
   @Get(':id/postes')
   @ApiOperation({
-    summary:
-      "Lister le poste (frontend, backend, ...) de chaque apprenant de la promotion sur ce projet",
+    summary: 'Lister le roster (apprenants affectés + poste éventuel) de ce projet',
   })
   async findPostes(@Param('id') id: string): Promise<ApprenantAvecPoste[]> {
     return this.projetsService.findPostesForProjet(id);
   }
 
+  @Get(':id/apprenants-disponibles')
+  @ApiOperation({
+    summary:
+      "Lister les apprenants de la promotion pas encore affectés à ce projet",
+  })
+  async findApprenantsDisponibles(
+    @Param('id') id: string,
+  ): Promise<Pick<User, 'id' | 'firstname' | 'lastname' | 'email'>[]> {
+    return this.projetsService.findApprenantsDisponibles(id);
+  }
+
+  @Post(':id/apprenants/:apprenantId')
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({ summary: 'Affecter explicitement un apprenant à ce projet' })
+  async addApprenant(
+    @Param('id') id: string,
+    @Param('apprenantId') apprenantId: string,
+  ): Promise<ProjetPoste> {
+    return this.projetsService.addApprenant(id, apprenantId);
+  }
+
+  @Delete(':id/apprenants/:apprenantId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Retirer un apprenant de ce projet' })
+  async removeApprenant(
+    @Param('id') id: string,
+    @Param('apprenantId') apprenantId: string,
+  ): Promise<void> {
+    return this.projetsService.removeApprenantFromProjet(id, apprenantId);
+  }
+
   @Patch(':id/postes/:apprenantId')
   @ApiOperation({
-    summary: "Assigner le poste d'un apprenant sur ce projet",
+    summary: "Changer le poste d'un apprenant déjà affecté à ce projet",
   })
   async setPoste(
     @Param('id') id: string,

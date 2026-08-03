@@ -9,7 +9,9 @@ import {
 import { SoumissionsService } from './soumissions.service';
 import { Soumission } from './entities/soumission.entity';
 import { Projet } from './entities/projet.entity';
+import { ProjetPoste } from './entities/projet-poste.entity';
 import { User } from '../users/entities/user.entity';
+import { NotificationsService } from '../notifications/notifications.service';
 
 describe('SoumissionsService', () => {
   let service: SoumissionsService;
@@ -23,8 +25,15 @@ describe('SoumissionsService', () => {
   const mockProjetRepository = {
     findOne: jest.fn(),
   };
+  const mockProjetPosteRepository = {
+    findOne: jest.fn(),
+  };
   const mockUserRepository = {
     findOne: jest.fn(),
+  };
+  const mockNotificationsService = {
+    notify: jest.fn(),
+    notifyMany: jest.fn(),
   };
 
   const dto = {
@@ -43,7 +52,12 @@ describe('SoumissionsService', () => {
           useValue: mockSoumissionRepository,
         },
         { provide: getRepositoryToken(Projet), useValue: mockProjetRepository },
+        {
+          provide: getRepositoryToken(ProjetPoste),
+          useValue: mockProjetPosteRepository,
+        },
         { provide: getRepositoryToken(User), useValue: mockUserRepository },
+        { provide: NotificationsService, useValue: mockNotificationsService },
       ],
     }).compile();
 
@@ -63,16 +77,12 @@ describe('SoumissionsService', () => {
       ).rejects.toBeInstanceOf(NotFoundException);
     });
 
-    it("refuse la soumission d'un apprenant hors de la promotion du projet", async () => {
+    it("refuse la soumission d'un apprenant non affecté au projet (pas sur le roster)", async () => {
       mockProjetRepository.findOne.mockResolvedValue({
         id: 'p1',
         promotionId: 'promo-1',
       });
-      mockUserRepository.findOne.mockResolvedValue({
-        id: 'a1',
-        promotionId: 'autre-promo',
-        isDeleted: false,
-      });
+      mockProjetPosteRepository.findOne.mockResolvedValue(null);
 
       await expect(service.create('p1', dto, 'a1')).rejects.toBeInstanceOf(
         ForbiddenException,
@@ -84,10 +94,10 @@ describe('SoumissionsService', () => {
         id: 'p1',
         promotionId: 'promo-1',
       });
-      mockUserRepository.findOne.mockResolvedValue({
-        id: 'a1',
-        promotionId: 'promo-1',
-        isDeleted: false,
+      mockProjetPosteRepository.findOne.mockResolvedValue({
+        id: 'roster-1',
+        projetId: 'p1',
+        apprenantId: 'a1',
       });
       mockSoumissionRepository.findOne.mockResolvedValue(null);
       mockSoumissionRepository.create.mockImplementation(
@@ -106,10 +116,10 @@ describe('SoumissionsService', () => {
         id: 'p1',
         promotionId: 'promo-1',
       });
-      mockUserRepository.findOne.mockResolvedValue({
-        id: 'a1',
-        promotionId: 'promo-1',
-        isDeleted: false,
+      mockProjetPosteRepository.findOne.mockResolvedValue({
+        id: 'roster-1',
+        projetId: 'p1',
+        apprenantId: 'a1',
       });
       mockSoumissionRepository.findOne.mockResolvedValue({
         id: 's1',
@@ -131,10 +141,10 @@ describe('SoumissionsService', () => {
         id: 'p1',
         promotionId: 'promo-1',
       });
-      mockUserRepository.findOne.mockResolvedValue({
-        id: 'a1',
-        promotionId: 'promo-1',
-        isDeleted: false,
+      mockProjetPosteRepository.findOne.mockResolvedValue({
+        id: 'roster-1',
+        projetId: 'p1',
+        apprenantId: 'a1',
       });
       mockSoumissionRepository.findOne.mockResolvedValue({
         id: 's1',
@@ -161,8 +171,10 @@ describe('SoumissionsService', () => {
     it('enregistre la note et le feedback', async () => {
       mockSoumissionRepository.findOne.mockResolvedValue({
         id: 's1',
+        apprenantId: 'a1',
         note: null,
         feedback: null,
+        projet: { titre: 'API REST' },
       });
       mockSoumissionRepository.save.mockImplementation((data: object) =>
         Promise.resolve(data),

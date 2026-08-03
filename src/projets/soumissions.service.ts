@@ -8,9 +8,12 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Soumission } from './entities/soumission.entity';
 import { Projet } from './entities/projet.entity';
+import { ProjetPoste } from './entities/projet-poste.entity';
 import { User } from '../users/entities/user.entity';
 import { CreateSoumissionDto } from './dto/create-soumission.dto';
 import { NoterSoumissionDto } from './dto/noter-soumission.dto';
+import { NotificationsService } from '../notifications/notifications.service';
+import { NotificationType } from '../common/enums/notification-type.enum';
 
 @Injectable()
 export class SoumissionsService {
@@ -19,14 +22,18 @@ export class SoumissionsService {
     private readonly soumissionRepository: Repository<Soumission>,
     @InjectRepository(Projet)
     private readonly projetRepository: Repository<Projet>,
+    @InjectRepository(ProjetPoste)
+    private readonly projetPosteRepository: Repository<ProjetPoste>,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   /**
-   * Règle Lead #383 : seul l'apprenant appartenant à la promotion du projet
-   * peut soumettre. Une nouvelle soumission avant notation remplace la
-   * précédente ; une soumission déjà notée ne peut plus être modifiée.
+   * Règle Lead #383 : seul l'apprenant explicitement affecté au projet
+   * (roster, voir ProjetPoste) peut soumettre. Une nouvelle soumission avant
+   * notation remplace la précédente ; une soumission déjà notée ne peut plus
+   * être modifiée.
    */
   async create(
     projetId: string,
@@ -40,10 +47,10 @@ export class SoumissionsService {
       throw new NotFoundException(`Projet ${projetId} non trouvé`);
     }
 
-    const apprenant = await this.userRepository.findOne({
-      where: { id: apprenantId, isDeleted: false },
+    const surLeRoster = await this.projetPosteRepository.findOne({
+      where: { projetId, apprenantId },
     });
-    if (!apprenant || apprenant.promotionId !== projet.promotionId) {
+    if (!surLeRoster) {
       throw new ForbiddenException("Vous n'êtes pas assigné à ce projet");
     }
 
@@ -101,6 +108,16 @@ export class SoumissionsService {
     }
     soumission.note = dto.note;
     soumission.feedback = dto.feedback ?? null;
-    return this.soumissionRepository.save(soumission);
+    const saved = await this.soumissionRepository.save(soumission);
+
+    await this.notificationsService.notify(
+      soumission.apprenantId,
+      NotificationType.PROJET_NOTE,
+      'Projet noté',
+      `Votre projet "${soumission.projet.titre}" a été noté : ${dto.note}/20`,
+      '/dashboard/student/projets',
+    );
+
+    return saved;
   }
 }

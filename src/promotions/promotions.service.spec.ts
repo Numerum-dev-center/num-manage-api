@@ -6,6 +6,7 @@ import { PromotionsService } from './promotions.service';
 import { Promotion } from './entities/promotion.entity';
 import { User } from '../users/entities/user.entity';
 import { Role } from '../common/enums/role.enum';
+import { NotificationsService } from '../notifications/notifications.service';
 
 describe('PromotionsService', () => {
   let service: PromotionsService;
@@ -20,6 +21,10 @@ describe('PromotionsService', () => {
     find: jest.fn(),
     findOne: jest.fn(),
     save: jest.fn(),
+  };
+  const mockNotificationsService = {
+    notify: jest.fn(),
+    notifyMany: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -36,6 +41,7 @@ describe('PromotionsService', () => {
           provide: getRepositoryToken(User),
           useValue: mockUserRepository,
         },
+        { provide: NotificationsService, useValue: mockNotificationsService },
       ],
     }).compile();
 

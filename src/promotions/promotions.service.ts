@@ -12,6 +12,8 @@ import { Role } from '../common/enums/role.enum';
 import { CreatePromotionDto } from './dto/create-promotion.dto';
 import { UpdatePromotionDto } from './dto/update-promotion.dto';
 import { AssignApprenantsDto } from './dto/assign-apprenants.dto';
+import { NotificationsService } from '../notifications/notifications.service';
+import { NotificationType } from '../common/enums/notification-type.enum';
 
 @Injectable()
 export class PromotionsService {
@@ -20,6 +22,7 @@ export class PromotionsService {
     private readonly promotionRepository: Repository<Promotion>,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   async create(createPromotionDto: CreatePromotionDto): Promise<Promotion> {
@@ -134,10 +137,28 @@ export class PromotionsService {
       );
     }
 
+    // Un apprenant n'appartient qu'à une seule promotion à la fois.
+    const dejaAilleurs = apprenants.find(
+      (user) => user.promotionId && user.promotionId !== id,
+    );
+    if (dejaAilleurs) {
+      throw new BadRequestException(
+        `L'apprenant ${dejaAilleurs.id} appartient déjà à une autre promotion`,
+      );
+    }
+
     for (const apprenant of apprenants) {
       apprenant.promotionId = promotion.id;
     }
     await this.userRepository.save(apprenants);
+
+    await this.notificationsService.notifyMany(
+      apprenants.map((a) => a.id),
+      NotificationType.AFFECTATION_PROMOTION,
+      'Nouvelle promotion',
+      `Vous avez été affecté à la promotion "${promotion.name}"`,
+      '/dashboard/student/promotion',
+    );
 
     return this.findOne(id);
   }

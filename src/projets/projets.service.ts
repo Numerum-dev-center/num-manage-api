@@ -1,11 +1,12 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { Projet } from './entities/projet.entity';
 import { Soumission } from './entities/soumission.entity';
 import { ProjetPoste } from './entities/projet-poste.entity';
@@ -15,6 +16,8 @@ import { Role } from '../common/enums/role.enum';
 import { StatutProjet } from '../common/enums/statut-projet.enum';
 import { PosteProjet } from '../common/enums/poste-projet.enum';
 import { CreateProjetDto } from './dto/create-projet.dto';
+import { NotificationsService } from '../notifications/notifications.service';
+import { NotificationType } from '../common/enums/notification-type.enum';
 
 export interface ProjetAvecStats extends Projet {
   statut: StatutProjet;
@@ -49,6 +52,7 @@ export class ProjetsService {
     private readonly promotionRepository: Repository<Promotion>,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   async create(dto: CreateProjetDto, createdById: string): Promise<Projet> {
@@ -90,9 +94,10 @@ export class ProjetsService {
   async findAllForManager(): Promise<ProjetAvecStats[]> {
     const projets = await this.projetRepository.find({
       relations: {
-        promotion: { apprenants: true },
+        promotion: true,
         createdBy: true,
         soumissions: true,
+        postes: true,
       },
       order: { createdAt: 'DESC' },
     });
@@ -104,9 +109,10 @@ export class ProjetsService {
     const projet = await this.projetRepository.findOne({
       where: { id },
       relations: {
-        promotion: { apprenants: true },
+        promotion: true,
         createdBy: true,
         soumissions: true,
+        postes: true,
       },
     });
     if (!projet) {
@@ -116,7 +122,9 @@ export class ProjetsService {
   }
 
   private withStats(projet: Projet): ProjetAvecStats {
-    const totalApprenants = projet.promotion?.apprenants?.length ?? 0;
+    // Un projet ne cible plus toute la promotion automatiquement : seuls les
+    // apprenants explicitement affectés (roster = lignes ProjetPoste) comptent.
+    const totalApprenants = projet.postes?.length ?? 0;
     const soumissions = projet.soumissions ?? [];
     const totalSoumissions = soumissions.length;
     const totalEvaluees = soumissions.filter((s) => s.note != null).length;
@@ -152,12 +160,19 @@ export class ProjetsService {
     if (!user) {
       throw new NotFoundException(`Utilisateur ${userId} non trouvé`);
     }
-    if (!user.promotionId) {
+
+    // Seuls les projets où l'apprenant a été explicitement affecté (roster)
+    // apparaissent - plus d'inclusion automatique de toute la promotion.
+    const postes = await this.projetPosteRepository.find({
+      where: { apprenantId: userId },
+    });
+    if (postes.length === 0) {
       return [];
     }
+    const posteParProjet = new Map(postes.map((p) => [p.projetId, p.poste ?? null]));
 
     const projets = await this.projetRepository.find({
-      where: { promotionId: user.promotionId },
+      where: { id: In(postes.map((p) => p.projetId)) },
       relations: { promotion: true, createdBy: true },
       order: { dateLimite: 'ASC' },
     });
@@ -168,11 +183,6 @@ export class ProjetsService {
     const soumissionParProjet = new Map(
       soumissions.map((s) => [s.projetId, s]),
     );
-
-    const postes = await this.projetPosteRepository.find({
-      where: { apprenantId: userId },
-    });
-    const posteParProjet = new Map(postes.map((p) => [p.projetId, p.poste]));
 
     return projets.map((projet) => {
       const maSoumission = soumissionParProjet.get(projet.id) ?? null;
@@ -195,17 +205,14 @@ export class ProjetsService {
     userId: string,
   ): Promise<ProjetPourApprenant> {
     const projet = await this.findOne(id);
-    const user = await this.userRepository.findOne({
-      where: { id: userId, isDeleted: false },
+    const maPosteEntry = await this.projetPosteRepository.findOne({
+      where: { projetId: id, apprenantId: userId },
     });
-    if (!user || user.promotionId !== projet.promotionId) {
+    if (!maPosteEntry) {
       throw new NotFoundException(`Projet ${id} non trouvé`);
     }
 
     const maSoumission = await this.soumissionRepository.findOne({
-      where: { projetId: id, apprenantId: userId },
-    });
-    const maPosteEntry = await this.projetPosteRepository.findOne({
       where: { projetId: id, apprenantId: userId },
     });
     const { statut, enRetard } = this.computeStatutApprenant(
@@ -217,20 +224,16 @@ export class ProjetsService {
       statut,
       enRetard,
       maSoumission: maSoumission ?? null,
-      maPoste: maPosteEntry?.poste ?? null,
+      maPoste: maPosteEntry.poste ?? null,
     };
   }
 
   /**
-   * Assigne (ou change) le poste d'un apprenant sur un projet. Appelable par
-   * le formateur (affectation initiale) ou par l'apprenant lui-même
-   * (correction de son propre poste) - indépendant de la soumission.
+   * Affecte explicitement un apprenant de la promotion au roster du projet.
+   * Un projet ne cible plus toute la promotion par défaut : c'est cette
+   * action (formateur) qui rend l'apprenant éligible à soumettre.
    */
-  async setPoste(
-    projetId: string,
-    apprenantId: string,
-    poste: PosteProjet,
-  ): Promise<ProjetPoste> {
+  async addApprenant(projetId: string, apprenantId: string): Promise<ProjetPoste> {
     const projet = await this.projetRepository.findOne({
       where: { id: projetId },
     });
@@ -246,23 +249,98 @@ export class ProjetsService {
       );
     }
 
-    let entry = await this.projetPosteRepository.findOne({
+    const existing = await this.projetPosteRepository.findOne({
       where: { projetId, apprenantId },
     });
-    if (entry) {
-      entry.poste = poste;
-    } else {
-      entry = this.projetPosteRepository.create({
-        projetId,
-        apprenantId,
-        poste,
-      });
+    if (existing) {
+      throw new ConflictException('Cet apprenant est déjà affecté à ce projet');
     }
+
+    const entry = this.projetPosteRepository.create({
+      projetId,
+      apprenantId,
+      poste: null,
+    });
+    const saved = await this.projetPosteRepository.save(entry);
+
+    await this.notificationsService.notify(
+      apprenantId,
+      NotificationType.AFFECTATION_PROJET,
+      'Nouveau projet',
+      `Vous avez été affecté au projet "${projet.titre}"`,
+      '/dashboard/student/projets',
+    );
+
+    return saved;
+  }
+
+  /** Retire un apprenant du roster du projet. */
+  async removeApprenantFromProjet(
+    projetId: string,
+    apprenantId: string,
+  ): Promise<void> {
+    const entry = await this.projetPosteRepository.findOne({
+      where: { projetId, apprenantId },
+    });
+    if (!entry) {
+      throw new NotFoundException(
+        `Apprenant ${apprenantId} non affecté à ce projet`,
+      );
+    }
+    await this.projetPosteRepository.remove(entry);
+  }
+
+  /**
+   * Change le poste d'un apprenant déjà affecté au projet. Appelable par le
+   * formateur ou par l'apprenant lui-même, mais uniquement s'il est déjà
+   * sur le roster (le poste ne crée pas l'affectation, il la précise).
+   */
+  async setPoste(
+    projetId: string,
+    apprenantId: string,
+    poste: PosteProjet,
+  ): Promise<ProjetPoste> {
+    const entry = await this.projetPosteRepository.findOne({
+      where: { projetId, apprenantId },
+    });
+    if (!entry) {
+      throw new NotFoundException(
+        "Cet apprenant n'est pas affecté à ce projet",
+      );
+    }
+    entry.poste = poste;
     return this.projetPosteRepository.save(entry);
   }
 
-  /** Postes de tous les apprenants de la promotion du projet (assigné ou non). */
+  /** Roster du projet : uniquement les apprenants explicitement affectés. */
   async findPostesForProjet(projetId: string): Promise<ApprenantAvecPoste[]> {
+    const projet = await this.projetRepository.findOne({
+      where: { id: projetId },
+    });
+    if (!projet) {
+      throw new NotFoundException(`Projet ${projetId} non trouvé`);
+    }
+
+    const postes = await this.projetPosteRepository.find({
+      where: { projetId },
+      relations: { apprenant: true },
+    });
+
+    return postes.map((entry) => ({
+      apprenant: {
+        id: entry.apprenant.id,
+        firstname: entry.apprenant.firstname,
+        lastname: entry.apprenant.lastname,
+        email: entry.apprenant.email,
+      },
+      poste: entry.poste ?? null,
+    }));
+  }
+
+  /** Apprenants de la promotion du projet pas encore affectés (pour le picker "ajouter"). */
+  async findApprenantsDisponibles(
+    projetId: string,
+  ): Promise<Pick<User, 'id' | 'firstname' | 'lastname' | 'email'>[]> {
     const projet = await this.projetRepository.findOne({
       where: { id: projetId },
       relations: { promotion: { apprenants: true } },
@@ -274,17 +352,16 @@ export class ProjetsService {
     const postes = await this.projetPosteRepository.find({
       where: { projetId },
     });
-    const posteParApprenant = new Map(postes.map((p) => [p.apprenantId, p.poste]));
+    const dejaAffectes = new Set(postes.map((p) => p.apprenantId));
 
-    return (projet.promotion?.apprenants ?? []).map((apprenant) => ({
-      apprenant: {
+    return (projet.promotion?.apprenants ?? [])
+      .filter((apprenant) => !dejaAffectes.has(apprenant.id))
+      .map((apprenant) => ({
         id: apprenant.id,
         firstname: apprenant.firstname,
         lastname: apprenant.lastname,
         email: apprenant.email,
-      },
-      poste: posteParApprenant.get(apprenant.id) ?? null,
-    }));
+      }));
   }
 
   private computeStatutApprenant(
