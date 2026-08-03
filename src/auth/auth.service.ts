@@ -36,6 +36,7 @@ export class AuthService {
     const user = this.userRepository.create({
       ...registerDto,
       password: hashedPassword,
+      role: Role.APPRENANT,
     });
     const savedUser = await this.userRepository.save(user);
 
@@ -61,6 +62,10 @@ export class AuthService {
     });
     if (!user || !user.password) {
       throw new UnauthorizedException('Email ou mot de passe incorrect');
+    }
+
+    if (user.isDeleted || !user.isActive) {
+      throw new UnauthorizedException('Compte inactif ou supprimé');
     }
 
     const isPasswordValid = await bcrypt.compare(
@@ -93,10 +98,14 @@ export class AuthService {
   }
 
   private generateRefreshToken(user: User): string {
+    const refreshSecret = this.configService.get<string>('JWT_REFRESH_SECRET');
+    if (!refreshSecret) {
+      throw new Error('JWT_REFRESH_SECRET must be defined');
+    }
     const payload = { sub: user.id };
     return this.jwtService.sign(payload, {
-      secret: process.env.JWT_REFRESH_SECRET!,
-      expiresIn: (process.env.JWT_REFRESH_EXPIRES_IN! ?? '7d') as any,
+      secret: refreshSecret,
+      expiresIn: (this.configService.get<string>('JWT_REFRESH_EXPIRES_IN') ?? '7d') as any,
     });
   }
 
@@ -123,11 +132,16 @@ export class AuthService {
     }
 
     try {
+      const refreshSecret = this.configService.get<string>('JWT_REFRESH_SECRET');
+      if (!refreshSecret) {
+        throw new UnauthorizedException('Refresh secret non défini');
+      }
+
       const payload = this.jwtService.verify(token, {
-        secret: process.env.JWT_REFRESH_SECRET,
+        secret: refreshSecret,
       });
       const user = await this.userRepository.findOne({
-        where: { id: payload.sub },
+        where: { id: payload.sub, isDeleted: false, isActive: true },
       });
       if (!user) throw new UnauthorizedException('Utilisateur introuvable');
 
@@ -143,7 +157,9 @@ export class AuthService {
   }
 
   async getProfile(userId: string) {
-    const user = await this.userRepository.findOne({ where: { id: userId } });
+    const user = await this.userRepository.findOne({
+      where: { id: userId, isDeleted: false, isActive: true },
+    });
     if (!user) {
       throw new UnauthorizedException('Utilisateur introuvable');
     }
@@ -183,9 +199,11 @@ export class AuthService {
     const refreshToken = this.generateRefreshToken(user);
     this.setRefreshTokenCookie(res, refreshToken);
 
-    const frontendUrl = process.env.FRONTEND_URL!.split(',')[0];
+    const frontendUrl = this.configService.get<string>('FRONTEND_URL')?.split(',')[0];
+    if (!frontendUrl) {
+      throw new UnauthorizedException('Frontend URL non configurée');
+    }
     const redirectUrl = new URL('/auth/google/callback', frontendUrl);
-    redirectUrl.searchParams.set('token', accessToken);
     res.redirect(redirectUrl.toString());
   }
 }
