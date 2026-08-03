@@ -5,15 +5,22 @@ import {
   HttpCode,
   HttpStatus,
   Param,
+  Patch,
   Post,
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { ProjetsService, ProjetAvecStats } from './projets.service';
+import {
+  ProjetsService,
+  ProjetAvecStats,
+  ApprenantAvecPoste,
+} from './projets.service';
 import { SoumissionsService } from './soumissions.service';
 import { CreateProjetDto } from './dto/create-projet.dto';
+import { SetPosteDto } from './dto/set-poste.dto';
 import { Projet } from './entities/projet.entity';
 import { Soumission } from './entities/soumission.entity';
+import { ProjetPoste } from './entities/projet-poste.entity';
 import { User } from '../users/entities/user.entity';
 import { Promotion } from '../promotions/entities/promotion.entity';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -73,5 +80,26 @@ export class AdminProjetsController {
   @ApiOperation({ summary: "Lister les soumissions d'un projet (#390)" })
   async findSoumissions(@Param('id') id: string): Promise<Soumission[]> {
     return this.soumissionsService.findAllForProjet(id);
+  }
+
+  @Get(':id/postes')
+  @ApiOperation({
+    summary:
+      "Lister le poste (frontend, backend, ...) de chaque apprenant de la promotion sur ce projet",
+  })
+  async findPostes(@Param('id') id: string): Promise<ApprenantAvecPoste[]> {
+    return this.projetsService.findPostesForProjet(id);
+  }
+
+  @Patch(':id/postes/:apprenantId')
+  @ApiOperation({
+    summary: "Assigner le poste d'un apprenant sur ce projet",
+  })
+  async setPoste(
+    @Param('id') id: string,
+    @Param('apprenantId') apprenantId: string,
+    @Body() dto: SetPosteDto,
+  ): Promise<ProjetPoste> {
+    return this.projetsService.setPoste(id, apprenantId, dto.poste);
   }
 }

@@ -5,6 +5,7 @@ import {
   HttpCode,
   HttpStatus,
   Param,
+  Patch,
   Post,
   UseGuards,
 } from '@nestjs/common';
@@ -12,7 +13,9 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { ProjetsService, ProjetPourApprenant } from './projets.service';
 import { SoumissionsService } from './soumissions.service';
 import { CreateSoumissionDto } from './dto/create-soumission.dto';
+import { SetPosteDto } from './dto/set-poste.dto';
 import { Soumission } from './entities/soumission.entity';
+import { ProjetPoste } from './entities/projet-poste.entity';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
@@ -63,5 +66,17 @@ export class ProjetsController {
     @CurrentUser() currentUser: { sub: string },
   ): Promise<Soumission> {
     return this.soumissionsService.create(id, dto, currentUser.sub);
+  }
+
+  @Patch(':id/poste')
+  @ApiOperation({
+    summary: 'Choisir (ou changer) son propre poste sur ce projet',
+  })
+  async setMaPoste(
+    @Param('id') id: string,
+    @Body() dto: SetPosteDto,
+    @CurrentUser() currentUser: { sub: string },
+  ): Promise<ProjetPoste> {
+    return this.projetsService.setPoste(id, currentUser.sub, dto.poste);
   }
 }

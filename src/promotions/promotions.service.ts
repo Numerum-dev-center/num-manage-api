@@ -35,6 +35,7 @@ export class PromotionsService {
     return this.promotionRepository.find({
       where: includeArchived ? {} : { isArchived: false },
       relations: { apprenants: true, formateur: true },
+      order: { createdAt: 'ASC' },
     });
   }
 
