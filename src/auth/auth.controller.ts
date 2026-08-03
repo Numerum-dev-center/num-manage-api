@@ -73,6 +73,7 @@ export class AuthController {
     await this.authService.loginWithGoogle(req.user as GoogleProfile, res);
   }
 
+  @Public()
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
