@@ -8,6 +8,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { Promotion } from './entities/promotion.entity';
 import { User } from '../users/entities/user.entity';
+import { Projet } from '../projets/entities/projet.entity';
 import { Role } from '../common/enums/role.enum';
 import { CreatePromotionDto } from './dto/create-promotion.dto';
 import { UpdatePromotionDto } from './dto/update-promotion.dto';
@@ -22,6 +23,8 @@ export class PromotionsService {
     private readonly promotionRepository: Repository<Promotion>,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
+    @InjectRepository(Projet)
+    private readonly projetRepository: Repository<Projet>,
     private readonly notificationsService: NotificationsService,
   ) {}
 
@@ -100,13 +103,20 @@ export class PromotionsService {
   async archive(id: string): Promise<Promotion> {
     const promotion = await this.findOne(id);
     promotion.isArchived = true;
-    return this.promotionRepository.save(promotion);
+    const saved = await this.promotionRepository.save(promotion);
+    // L'archivage d'une promotion archive aussi ses projets (et vice-versa
+    // à la réactivation, voir unarchive()) : un projet n'a pas de sens
+    // actif sur une promotion qui ne l'est plus.
+    await this.projetRepository.update({ promotionId: id }, { isArchived: true });
+    return saved;
   }
 
   async unarchive(id: string): Promise<Promotion> {
     const promotion = await this.findOne(id);
     promotion.isArchived = false;
-    return this.promotionRepository.save(promotion);
+    const saved = await this.promotionRepository.save(promotion);
+    await this.projetRepository.update({ promotionId: id }, { isArchived: false });
+    return saved;
   }
 
   async assignApprenants(

@@ -27,7 +27,7 @@ export class ProjetPoste {
   id!: string;
 
   @Expose()
-  @ManyToOne(() => Projet, (projet) => projet.postes)
+  @ManyToOne(() => Projet, (projet) => projet.postes, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'projetId' })
   projet!: Projet;
 

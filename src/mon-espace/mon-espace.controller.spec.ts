@@ -10,6 +10,7 @@ import { RessourcesService } from '../ressources/ressources.service';
 import { Ressource } from '../ressources/entities/ressource.entity';
 import { AnnoncesService } from '../annonces/annonces.service';
 import { Annonce } from '../annonces/entities/annonce.entity';
+import { Projet } from '../projets/entities/projet.entity';
 import { NotificationsService } from '../notifications/notifications.service';
 import { Notification } from '../notifications/entities/notification.entity';
 
@@ -38,6 +39,10 @@ describe('MonEspaceController', () => {
         },
         {
           provide: getRepositoryToken(Annonce),
+          useValue: {},
+        },
+        {
+          provide: getRepositoryToken(Projet),
           useValue: {},
         },
         {

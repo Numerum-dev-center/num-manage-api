@@ -16,6 +16,7 @@ import { Role } from '../common/enums/role.enum';
 import { StatutProjet } from '../common/enums/statut-projet.enum';
 import { PosteProjet } from '../common/enums/poste-projet.enum';
 import { CreateProjetDto } from './dto/create-projet.dto';
+import { UpdateProjetDto } from './dto/update-projet.dto';
 import { NotificationsService } from '../notifications/notifications.service';
 import { NotificationType } from '../common/enums/notification-type.enum';
 
@@ -34,8 +35,13 @@ export interface ProjetPourApprenant extends Projet {
   maPoste: PosteProjet | null;
 }
 
+type ApprenantResume = Pick<
+  User,
+  'id' | 'firstname' | 'lastname' | 'email' | 'specialite'
+>;
+
 export interface ApprenantAvecPoste {
-  apprenant: Pick<User, 'id' | 'firstname' | 'lastname' | 'email'>;
+  apprenant: ApprenantResume;
   poste: PosteProjet | null;
 }
 
@@ -91,8 +97,9 @@ export class ProjetsService {
     return projet;
   }
 
-  async findAllForManager(): Promise<ProjetAvecStats[]> {
+  async findAllForManager(includeArchived = false): Promise<ProjetAvecStats[]> {
     const projets = await this.projetRepository.find({
+      where: includeArchived ? {} : { isArchived: false },
       relations: {
         promotion: true,
         createdBy: true,
@@ -103,6 +110,32 @@ export class ProjetsService {
     });
 
     return projets.map((projet) => this.withStats(projet));
+  }
+
+  async update(id: string, dto: UpdateProjetDto): Promise<Projet> {
+    await this.findOne(id);
+    await this.projetRepository.update(id, {
+      ...dto,
+      dateLimite: dto.dateLimite ? new Date(dto.dateLimite) : undefined,
+    });
+    return this.findOne(id);
+  }
+
+  async archive(id: string): Promise<Projet> {
+    const projet = await this.findOne(id);
+    projet.isArchived = true;
+    return this.projetRepository.save(projet);
+  }
+
+  async unarchive(id: string): Promise<Projet> {
+    const projet = await this.findOne(id);
+    projet.isArchived = false;
+    return this.projetRepository.save(projet);
+  }
+
+  async remove(id: string): Promise<void> {
+    const projet = await this.findOne(id);
+    await this.projetRepository.remove(projet);
   }
 
   async findOneForManager(id: string): Promise<ProjetAvecStats> {
@@ -172,7 +205,7 @@ export class ProjetsService {
     const posteParProjet = new Map(postes.map((p) => [p.projetId, p.poste ?? null]));
 
     const projets = await this.projetRepository.find({
-      where: { id: In(postes.map((p) => p.projetId)) },
+      where: { id: In(postes.map((p) => p.projetId)), isArchived: false },
       relations: { promotion: true, createdBy: true },
       order: { dateLimite: 'ASC' },
     });
@@ -239,6 +272,11 @@ export class ProjetsService {
     });
     if (!projet) {
       throw new NotFoundException(`Projet ${projetId} non trouvé`);
+    }
+    if (projet.isArchived) {
+      throw new BadRequestException(
+        'Impossible d’affecter un apprenant à un projet archivé',
+      );
     }
     const apprenant = await this.userRepository.findOne({
       where: { id: apprenantId, isDeleted: false },
@@ -332,15 +370,14 @@ export class ProjetsService {
         firstname: entry.apprenant.firstname,
         lastname: entry.apprenant.lastname,
         email: entry.apprenant.email,
+        specialite: entry.apprenant.specialite,
       },
       poste: entry.poste ?? null,
     }));
   }
 
   /** Apprenants de la promotion du projet pas encore affectés (pour le picker "ajouter"). */
-  async findApprenantsDisponibles(
-    projetId: string,
-  ): Promise<Pick<User, 'id' | 'firstname' | 'lastname' | 'email'>[]> {
+  async findApprenantsDisponibles(projetId: string): Promise<ApprenantResume[]> {
     const projet = await this.projetRepository.findOne({
       where: { id: projetId },
       relations: { promotion: { apprenants: true } },
@@ -361,6 +398,7 @@ export class ProjetsService {
         firstname: apprenant.firstname,
         lastname: apprenant.lastname,
         email: apprenant.email,
+        specialite: apprenant.specialite,
       }));
   }
 

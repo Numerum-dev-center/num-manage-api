@@ -46,6 +46,11 @@ export class SoumissionsService {
     if (!projet) {
       throw new NotFoundException(`Projet ${projetId} non trouvé`);
     }
+    if (projet.isArchived) {
+      throw new BadRequestException(
+        'Ce projet est archivé, il ne peut plus recevoir de soumission',
+      );
+    }
 
     const surLeRoster = await this.projetPosteRepository.findOne({
       where: { projetId, apprenantId },

@@ -36,6 +36,10 @@ export class Projet {
   dateLimite!: Date;
 
   @Expose()
+  @Column({ type: 'boolean', default: false })
+  isArchived!: boolean;
+
+  @Expose()
   @ManyToOne(() => Promotion)
   @JoinColumn({ name: 'promotionId' })
   promotion!: Promotion;

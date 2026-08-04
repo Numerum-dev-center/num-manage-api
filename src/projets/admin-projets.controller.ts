@@ -8,6 +8,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
@@ -18,6 +19,7 @@ import {
 } from './projets.service';
 import { SoumissionsService } from './soumissions.service';
 import { CreateProjetDto } from './dto/create-projet.dto';
+import { UpdateProjetDto } from './dto/update-projet.dto';
 import { SetPosteDto } from './dto/set-poste.dto';
 import { Projet } from './entities/projet.entity';
 import { Soumission } from './entities/soumission.entity';
@@ -46,8 +48,10 @@ export class AdminProjetsController {
     summary:
       'Lister tous les projets avec statut agrégé et alerte de retard (#387)',
   })
-  async findAll(): Promise<ProjetAvecStats[]> {
-    return this.projetsService.findAllForManager();
+  async findAll(
+    @Query('includeArchived') includeArchived?: string,
+  ): Promise<ProjetAvecStats[]> {
+    return this.projetsService.findAllForManager(includeArchived === 'true');
   }
 
   @Get('creer')
@@ -77,6 +81,34 @@ export class AdminProjetsController {
     return this.projetsService.findOneForManager(id);
   }
 
+  @Patch(':id')
+  @ApiOperation({ summary: 'Modifier un projet' })
+  async update(
+    @Param('id') id: string,
+    @Body() dto: UpdateProjetDto,
+  ): Promise<Projet> {
+    return this.projetsService.update(id, dto);
+  }
+
+  @Patch(':id/archive')
+  @ApiOperation({ summary: 'Archiver un projet' })
+  async archive(@Param('id') id: string): Promise<Projet> {
+    return this.projetsService.archive(id);
+  }
+
+  @Patch(':id/unarchive')
+  @ApiOperation({ summary: 'Réactiver un projet archivé' })
+  async unarchive(@Param('id') id: string): Promise<Projet> {
+    return this.projetsService.unarchive(id);
+  }
+
+  @Delete(':id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Supprimer un projet' })
+  async remove(@Param('id') id: string): Promise<void> {
+    return this.projetsService.remove(id);
+  }
+
   @Get(':id/soumissions')
   @ApiOperation({ summary: "Lister les soumissions d'un projet (#390)" })
   async findSoumissions(@Param('id') id: string): Promise<Soumission[]> {
@@ -98,7 +130,9 @@ export class AdminProjetsController {
   })
   async findApprenantsDisponibles(
     @Param('id') id: string,
-  ): Promise<Pick<User, 'id' | 'firstname' | 'lastname' | 'email'>[]> {
+  ): Promise<
+    Pick<User, 'id' | 'firstname' | 'lastname' | 'email' | 'specialite'>[]
+  > {
     return this.projetsService.findApprenantsDisponibles(id);
   }
 
