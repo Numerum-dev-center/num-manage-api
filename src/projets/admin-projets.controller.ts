@@ -1,19 +1,29 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   HttpCode,
   HttpStatus,
   Param,
+  Patch,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { ProjetsService, ProjetAvecStats } from './projets.service';
+import {
+  ProjetsService,
+  ProjetAvecStats,
+  ApprenantAvecPoste,
+} from './projets.service';
 import { SoumissionsService } from './soumissions.service';
 import { CreateProjetDto } from './dto/create-projet.dto';
+import { UpdateProjetDto } from './dto/update-projet.dto';
+import { SetPosteDto } from './dto/set-poste.dto';
 import { Projet } from './entities/projet.entity';
 import { Soumission } from './entities/soumission.entity';
+import { ProjetPoste } from './entities/projet-poste.entity';
 import { User } from '../users/entities/user.entity';
 import { Promotion } from '../promotions/entities/promotion.entity';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -38,8 +48,10 @@ export class AdminProjetsController {
     summary:
       'Lister tous les projets avec statut agrégé et alerte de retard (#387)',
   })
-  async findAll(): Promise<ProjetAvecStats[]> {
-    return this.projetsService.findAllForManager();
+  async findAll(
+    @Query('includeArchived') includeArchived?: string,
+  ): Promise<ProjetAvecStats[]> {
+    return this.projetsService.findAllForManager(includeArchived === 'true');
   }
 
   @Get('creer')
@@ -69,9 +81,90 @@ export class AdminProjetsController {
     return this.projetsService.findOneForManager(id);
   }
 
+  @Patch(':id')
+  @ApiOperation({ summary: 'Modifier un projet' })
+  async update(
+    @Param('id') id: string,
+    @Body() dto: UpdateProjetDto,
+  ): Promise<Projet> {
+    return this.projetsService.update(id, dto);
+  }
+
+  @Patch(':id/archive')
+  @ApiOperation({ summary: 'Archiver un projet' })
+  async archive(@Param('id') id: string): Promise<Projet> {
+    return this.projetsService.archive(id);
+  }
+
+  @Patch(':id/unarchive')
+  @ApiOperation({ summary: 'Réactiver un projet archivé' })
+  async unarchive(@Param('id') id: string): Promise<Projet> {
+    return this.projetsService.unarchive(id);
+  }
+
+  @Delete(':id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Supprimer un projet' })
+  async remove(@Param('id') id: string): Promise<void> {
+    return this.projetsService.remove(id);
+  }
+
   @Get(':id/soumissions')
   @ApiOperation({ summary: "Lister les soumissions d'un projet (#390)" })
   async findSoumissions(@Param('id') id: string): Promise<Soumission[]> {
     return this.soumissionsService.findAllForProjet(id);
+  }
+
+  @Get(':id/postes')
+  @ApiOperation({
+    summary: 'Lister le roster (apprenants affectés + poste éventuel) de ce projet',
+  })
+  async findPostes(@Param('id') id: string): Promise<ApprenantAvecPoste[]> {
+    return this.projetsService.findPostesForProjet(id);
+  }
+
+  @Get(':id/apprenants-disponibles')
+  @ApiOperation({
+    summary:
+      "Lister les apprenants de la promotion pas encore affectés à ce projet",
+  })
+  async findApprenantsDisponibles(
+    @Param('id') id: string,
+  ): Promise<
+    Pick<User, 'id' | 'firstname' | 'lastname' | 'email' | 'specialite'>[]
+  > {
+    return this.projetsService.findApprenantsDisponibles(id);
+  }
+
+  @Post(':id/apprenants/:apprenantId')
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({ summary: 'Affecter explicitement un apprenant à ce projet' })
+  async addApprenant(
+    @Param('id') id: string,
+    @Param('apprenantId') apprenantId: string,
+  ): Promise<ProjetPoste> {
+    return this.projetsService.addApprenant(id, apprenantId);
+  }
+
+  @Delete(':id/apprenants/:apprenantId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Retirer un apprenant de ce projet' })
+  async removeApprenant(
+    @Param('id') id: string,
+    @Param('apprenantId') apprenantId: string,
+  ): Promise<void> {
+    return this.projetsService.removeApprenantFromProjet(id, apprenantId);
+  }
+
+  @Patch(':id/postes/:apprenantId')
+  @ApiOperation({
+    summary: "Changer le poste d'un apprenant déjà affecté à ce projet",
+  })
+  async setPoste(
+    @Param('id') id: string,
+    @Param('apprenantId') apprenantId: string,
+    @Body() dto: SetPosteDto,
+  ): Promise<ProjetPoste> {
+    return this.projetsService.setPoste(id, apprenantId, dto.poste);
   }
 }

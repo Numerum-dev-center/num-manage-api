@@ -6,9 +6,12 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
+import * as fs from 'fs';
+import { join } from 'path';
 import { User } from './entities/user.entity';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { AVATARS_UPLOAD_DIR } from './avatar.multer-options';
 
 @Injectable()
 export class UsersService {
@@ -68,6 +71,24 @@ export class UsersService {
       }
     }
     Object.assign(user, updateUserDto);
+    return this.userRepository.save(user);
+  }
+
+  async setAvatar(id: string, file: Express.Multer.File): Promise<User> {
+    const user = await this.findOne(id);
+
+    // Supprime l'ancien avatar sur disque pour ne pas accumuler de fichiers
+    // orphelins à chaque changement de photo.
+    if (user.avatarUrl) {
+      const previousFilename = user.avatarUrl.split('/').pop();
+      if (previousFilename) {
+        await fs.promises
+          .unlink(join(AVATARS_UPLOAD_DIR, previousFilename))
+          .catch(() => undefined);
+      }
+    }
+
+    user.avatarUrl = `/avatars/${file.filename}`;
     return this.userRepository.save(user);
   }
 

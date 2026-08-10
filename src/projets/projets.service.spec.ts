@@ -5,9 +5,11 @@ import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { ProjetsService } from './projets.service';
 import { Projet } from './entities/projet.entity';
 import { Soumission } from './entities/soumission.entity';
+import { ProjetPoste } from './entities/projet-poste.entity';
 import { Promotion } from '../promotions/entities/promotion.entity';
 import { User } from '../users/entities/user.entity';
 import { StatutProjet } from '../common/enums/statut-projet.enum';
+import { NotificationsService } from '../notifications/notifications.service';
 
 describe('ProjetsService', () => {
   let service: ProjetsService;
@@ -22,6 +24,13 @@ describe('ProjetsService', () => {
     find: jest.fn(),
     findOne: jest.fn(),
   };
+  const mockProjetPosteRepository = {
+    find: jest.fn(),
+    findOne: jest.fn(),
+    create: jest.fn(),
+    save: jest.fn(),
+    remove: jest.fn(),
+  };
   const mockPromotionRepository = {
     find: jest.fn(),
     findOne: jest.fn(),
@@ -30,9 +39,14 @@ describe('ProjetsService', () => {
     find: jest.fn(),
     findOne: jest.fn(),
   };
+  const mockNotificationsService = {
+    notify: jest.fn(),
+    notifyMany: jest.fn(),
+  };
 
   beforeEach(async () => {
     jest.clearAllMocks();
+    mockProjetPosteRepository.find.mockResolvedValue([]);
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -43,10 +57,15 @@ describe('ProjetsService', () => {
           useValue: mockSoumissionRepository,
         },
         {
+          provide: getRepositoryToken(ProjetPoste),
+          useValue: mockProjetPosteRepository,
+        },
+        {
           provide: getRepositoryToken(Promotion),
           useValue: mockPromotionRepository,
         },
         { provide: getRepositoryToken(User), useValue: mockUserRepository },
+        { provide: NotificationsService, useValue: mockNotificationsService },
       ],
     }).compile();
 
@@ -132,7 +151,7 @@ describe('ProjetsService', () => {
       mockProjetRepository.findOne.mockResolvedValue({
         id: 'p1',
         dateLimite: new Date(Date.now() + 86_400_000),
-        promotion: { apprenants: [{ id: 'a1' }] },
+        postes: [{ apprenantId: 'a1' }],
         soumissions: [],
       });
 
@@ -150,7 +169,7 @@ describe('ProjetsService', () => {
         {
           id: 'p1',
           dateLimite: dateLimiteFuture,
-          promotion: { apprenants: [{ id: 'a1' }, { id: 'a2' }] },
+          postes: [{ apprenantId: 'a1' }, { apprenantId: 'a2' }],
           soumissions: [],
         },
       ]);
@@ -168,7 +187,7 @@ describe('ProjetsService', () => {
         {
           id: 'p1',
           dateLimite: dateLimitePassee,
-          promotion: { apprenants: [{ id: 'a1' }, { id: 'a2' }] },
+          postes: [{ apprenantId: 'a1' }, { apprenantId: 'a2' }],
           soumissions: [{ note: null }],
         },
       ]);
@@ -182,7 +201,7 @@ describe('ProjetsService', () => {
         {
           id: 'p1',
           dateLimite: dateLimiteFuture,
-          promotion: { apprenants: [{ id: 'a1' }, { id: 'a2' }] },
+          postes: [{ apprenantId: 'a1' }, { apprenantId: 'a2' }],
           soumissions: [{ note: null }, { note: null }],
         },
       ]);
@@ -196,7 +215,7 @@ describe('ProjetsService', () => {
         {
           id: 'p1',
           dateLimite: dateLimiteFuture,
-          promotion: { apprenants: [{ id: 'a1' }, { id: 'a2' }] },
+          postes: [{ apprenantId: 'a1' }, { apprenantId: 'a2' }],
           soumissions: [{ note: 15 }, { note: 18 }],
         },
       ]);
@@ -210,21 +229,20 @@ describe('ProjetsService', () => {
   });
 
   describe('findMine — statut personnel de l’apprenant (#394)', () => {
-    it("retourne un tableau vide si l'apprenant n'a pas de promotion", async () => {
-      mockUserRepository.findOne.mockResolvedValue({
-        id: 'a1',
-        promotionId: null,
-      });
+    it("retourne un tableau vide si l'apprenant n'est affecté à aucun projet", async () => {
+      mockUserRepository.findOne.mockResolvedValue({ id: 'a1' });
+      mockProjetPosteRepository.find.mockResolvedValue([]);
 
       const result = await service.findMine('a1');
       expect(result).toEqual([]);
     });
 
     it('calcule EN_COURS sans soumission et SOUMIS/EVALUE selon la note', async () => {
-      mockUserRepository.findOne.mockResolvedValue({
-        id: 'a1',
-        promotionId: 'promo-1',
-      });
+      mockUserRepository.findOne.mockResolvedValue({ id: 'a1' });
+      mockProjetPosteRepository.find.mockResolvedValue([
+        { projetId: 'p1', apprenantId: 'a1', poste: null },
+        { projetId: 'p2', apprenantId: 'a1', poste: null },
+      ]);
       mockProjetRepository.find.mockResolvedValue([
         {
           id: 'p1',
@@ -252,16 +270,13 @@ describe('ProjetsService', () => {
   });
 
   describe('getForSoumettre', () => {
-    it("lève une NotFoundException si l'apprenant n'appartient pas à la promotion du projet", async () => {
+    it("lève une NotFoundException si l'apprenant n'est pas affecté à ce projet (pas sur le roster)", async () => {
       mockProjetRepository.findOne.mockResolvedValue({
         id: 'p1',
         promotionId: 'promo-1',
         soumissions: [],
       });
-      mockUserRepository.findOne.mockResolvedValue({
-        id: 'a1',
-        promotionId: 'autre-promo',
-      });
+      mockProjetPosteRepository.findOne.mockResolvedValue(null);
 
       await expect(service.getForSoumettre('p1', 'a1')).rejects.toBeInstanceOf(
         NotFoundException,

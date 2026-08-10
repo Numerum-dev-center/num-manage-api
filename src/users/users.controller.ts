@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Controller,
   Get,
   Post,
@@ -7,15 +8,24 @@ import {
   Param,
   Delete,
   UseGuards,
+  UseInterceptors,
+  UploadedFile,
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
-import { ApiBearerAuth, ApiTags, ApiOperation } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiConsumes,
+  ApiTags,
+  ApiOperation,
+} from '@nestjs/swagger';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { User } from './entities/user.entity';
+import { avatarMulterOptions } from './avatar.multer-options';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
@@ -63,6 +73,24 @@ export class UsersController {
     @Body() updateUserDto: UpdateUserDto,
   ): Promise<User> {
     return this.usersService.update(currentUser.sub, updateUserDto);
+  }
+
+  @Post('me/avatar')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @UseInterceptors(FileInterceptor('avatar', avatarMulterOptions))
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({
+    summary: 'Téléverser sa photo de profil (JPG/PNG/WEBP/GIF, 5 Mo max)',
+  })
+  async updateMyAvatar(
+    @CurrentUser() currentUser: any,
+    @UploadedFile() file: Express.Multer.File | undefined,
+  ): Promise<User> {
+    if (!file) {
+      throw new BadRequestException('Aucun fichier fourni');
+    }
+    return this.usersService.setAvatar(currentUser.sub, file);
   }
 
   @Patch(':id')

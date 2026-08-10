@@ -11,15 +11,23 @@ import {
 import { Expose } from 'class-transformer';
 import { Projet } from './projet.entity';
 import { User } from '../../users/entities/user.entity';
+import { PosteProjet } from '../../common/enums/poste-projet.enum';
 
-@Entity('soumissions')
+/**
+ * Fait foi de l'affectation explicite d'un apprenant à un projet (roster) :
+ * seuls les apprenants ayant une ligne ici sont considérés comme sur le
+ * projet - un projet ne cible plus automatiquement toute la promotion.
+ * Le poste (frontend, backend, ...) est un attribut optionnel de cette
+ * affectation, modifiable par le formateur ou par l'apprenant lui-même.
+ */
+@Entity('projet_postes')
 @Unique(['projetId', 'apprenantId'])
-export class Soumission {
+export class ProjetPoste {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
   @Expose()
-  @ManyToOne(() => Projet, (projet) => projet.soumissions, { onDelete: 'CASCADE' })
+  @ManyToOne(() => Projet, (projet) => projet.postes, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'projetId' })
   projet!: Projet;
 
@@ -35,24 +43,8 @@ export class Soumission {
   apprenantId!: string;
 
   @Expose()
-  @Column({ type: 'varchar', length: 500 })
-  lienGithub!: string;
-
-  @Expose()
-  @Column({ type: 'varchar', length: 500 })
-  lienDemo!: string;
-
-  @Expose()
-  @Column({ type: 'text', nullable: true })
-  commentaire?: string | null;
-
-  @Expose()
-  @Column({ type: 'int', nullable: true })
-  note?: number | null;
-
-  @Expose()
-  @Column({ type: 'text', nullable: true })
-  feedback?: string | null;
+  @Column({ type: 'enum', enum: PosteProjet, nullable: true })
+  poste?: PosteProjet | null;
 
   @CreateDateColumn()
   createdAt!: Date;

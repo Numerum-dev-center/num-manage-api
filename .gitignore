@@ -46,8 +46,9 @@ lerna-debug.log*
 .temp
 .tmp
 
-# fichiers téléversés (ressources pédagogiques)
+# fichiers téléversés (ressources pédagogiques, avatars)
 /uploads
+/public
 
 # identifiants générés par le seed de démonstration (jamais à commiter)
 *.local.md

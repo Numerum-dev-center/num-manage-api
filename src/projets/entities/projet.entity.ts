@@ -12,6 +12,7 @@ import { Expose } from 'class-transformer';
 import { Promotion } from '../../promotions/entities/promotion.entity';
 import { User } from '../../users/entities/user.entity';
 import { Soumission } from './soumission.entity';
+import { ProjetPoste } from './projet-poste.entity';
 
 @Entity('projets')
 export class Projet {
@@ -35,6 +36,10 @@ export class Projet {
   dateLimite!: Date;
 
   @Expose()
+  @Column({ type: 'boolean', default: false })
+  isArchived!: boolean;
+
+  @Expose()
   @ManyToOne(() => Promotion)
   @JoinColumn({ name: 'promotionId' })
   promotion!: Promotion;
@@ -53,6 +58,11 @@ export class Projet {
   @Expose()
   @OneToMany(() => Soumission, (soumission) => soumission.projet)
   soumissions!: Soumission[];
+
+  /** Le roster : apprenants explicitement affectés à ce projet (voir ProjetPoste). */
+  @Expose()
+  @OneToMany(() => ProjetPoste, (projetPoste) => projetPoste.projet)
+  postes!: ProjetPoste[];
 
   @CreateDateColumn()
   createdAt!: Date;

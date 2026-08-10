@@ -8,10 +8,13 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { Promotion } from './entities/promotion.entity';
 import { User } from '../users/entities/user.entity';
+import { Projet } from '../projets/entities/projet.entity';
 import { Role } from '../common/enums/role.enum';
 import { CreatePromotionDto } from './dto/create-promotion.dto';
 import { UpdatePromotionDto } from './dto/update-promotion.dto';
 import { AssignApprenantsDto } from './dto/assign-apprenants.dto';
+import { NotificationsService } from '../notifications/notifications.service';
+import { NotificationType } from '../common/enums/notification-type.enum';
 
 @Injectable()
 export class PromotionsService {
@@ -20,6 +23,9 @@ export class PromotionsService {
     private readonly promotionRepository: Repository<Promotion>,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
+    @InjectRepository(Projet)
+    private readonly projetRepository: Repository<Projet>,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   async create(createPromotionDto: CreatePromotionDto): Promise<Promotion> {
@@ -35,6 +41,7 @@ export class PromotionsService {
     return this.promotionRepository.find({
       where: includeArchived ? {} : { isArchived: false },
       relations: { apprenants: true, formateur: true },
+      order: { createdAt: 'ASC' },
     });
   }
 
@@ -96,13 +103,20 @@ export class PromotionsService {
   async archive(id: string): Promise<Promotion> {
     const promotion = await this.findOne(id);
     promotion.isArchived = true;
-    return this.promotionRepository.save(promotion);
+    const saved = await this.promotionRepository.save(promotion);
+    // L'archivage d'une promotion archive aussi ses projets (et vice-versa
+    // à la réactivation, voir unarchive()) : un projet n'a pas de sens
+    // actif sur une promotion qui ne l'est plus.
+    await this.projetRepository.update({ promotionId: id }, { isArchived: true });
+    return saved;
   }
 
   async unarchive(id: string): Promise<Promotion> {
     const promotion = await this.findOne(id);
     promotion.isArchived = false;
-    return this.promotionRepository.save(promotion);
+    const saved = await this.promotionRepository.save(promotion);
+    await this.projetRepository.update({ promotionId: id }, { isArchived: false });
+    return saved;
   }
 
   async assignApprenants(
@@ -133,10 +147,28 @@ export class PromotionsService {
       );
     }
 
+    // Un apprenant n'appartient qu'à une seule promotion à la fois.
+    const dejaAilleurs = apprenants.find(
+      (user) => user.promotionId && user.promotionId !== id,
+    );
+    if (dejaAilleurs) {
+      throw new BadRequestException(
+        `L'apprenant ${dejaAilleurs.id} appartient déjà à une autre promotion`,
+      );
+    }
+
     for (const apprenant of apprenants) {
       apprenant.promotionId = promotion.id;
     }
     await this.userRepository.save(apprenants);
+
+    await this.notificationsService.notifyMany(
+      apprenants.map((a) => a.id),
+      NotificationType.AFFECTATION_PROMOTION,
+      'Nouvelle promotion',
+      `Vous avez été affecté à la promotion "${promotion.name}"`,
+      '/dashboard/student/promotion',
+    );
 
     return this.findOne(id);
   }

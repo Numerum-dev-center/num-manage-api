@@ -14,6 +14,7 @@ import { MonEspaceModule } from './mon-espace/mon-espace.module';
 import { RessourcesModule } from './ressources/ressources.module';
 import { AnnoncesModule } from './annonces/annonces.module';
 import { ProjetsModule } from './projets/projets.module';
+import { NotificationsModule } from './notifications/notifications.module';
 
 @Module({
   imports: [
@@ -54,6 +55,7 @@ import { ProjetsModule } from './projets/projets.module';
     RessourcesModule,
     AnnoncesModule,
     ProjetsModule,
+    NotificationsModule,
   ],
   controllers: [AppController],
   providers: [
