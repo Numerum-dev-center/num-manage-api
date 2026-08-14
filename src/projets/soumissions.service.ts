@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -14,6 +15,7 @@ import { CreateSoumissionDto } from './dto/create-soumission.dto';
 import { NoterSoumissionDto } from './dto/noter-soumission.dto';
 import { NotificationsService } from '../notifications/notifications.service';
 import { NotificationType } from '../common/enums/notification-type.enum';
+import { Role } from '../common/enums/role.enum';
 
 @Injectable()
 export class SoumissionsService {
@@ -82,16 +84,39 @@ export class SoumissionsService {
       lienDemo: dto.lienDemo,
       commentaire: dto.commentaire ?? null,
     });
-    return this.soumissionRepository.save(soumission);
+    try {
+      return await this.soumissionRepository.save(soumission);
+    } catch (err) {
+      // Deux requêtes concurrentes peuvent toutes deux passer le SELECT
+      // "existante" ci-dessus avant que l'une des deux n'écrive (pas de
+      // verrou/transaction) : la contrainte unique (projetId, apprenantId)
+      // au niveau SQL protège bien contre le doublon, mais la violation
+      // (ER_DUP_ENTRY côté MySQL) remontait jusque-là comme un 500 générique
+      // au lieu d'un 409 exploitable par le frontend.
+      const driverCode =
+        (err as { code?: string; driverError?: { code?: string } })?.driverError
+          ?.code ?? (err as { code?: string })?.code;
+      if (driverCode === 'ER_DUP_ENTRY') {
+        throw new ConflictException(
+          'Une soumission existe déjà pour ce projet — réessayez, elle vient d’être prise en compte.',
+        );
+      }
+      throw err;
+    }
   }
 
-  async findAllForProjet(projetId: string): Promise<Soumission[]> {
+  async findAllForProjet(
+    projetId: string,
+    currentUser?: { sub: string; role: Role },
+  ): Promise<Soumission[]> {
     const projet = await this.projetRepository.findOne({
       where: { id: projetId },
+      relations: { promotion: true },
     });
     if (!projet) {
       throw new NotFoundException(`Projet ${projetId} non trouvé`);
     }
+    this.assertFormateurGereProjet(projet, currentUser);
     return this.soumissionRepository.find({
       where: { projetId },
       relations: { apprenant: true },
@@ -99,18 +124,39 @@ export class SoumissionsService {
     });
   }
 
+  /**
+   * Un FORMATEUR ne peut noter/consulter que les soumissions des projets des
+   * promotions qu'il encadre (promotion.formateurId). Un SUPER_ADMIN n'est
+   * jamais restreint. Sans currentUser (défaut), aucune restriction.
+   */
+  private assertFormateurGereProjet(
+    projet: Projet,
+    currentUser?: { sub: string; role: Role },
+  ): void {
+    if (
+      currentUser?.role === Role.FORMATEUR &&
+      projet.promotion?.formateurId !== currentUser.sub
+    ) {
+      throw new ForbiddenException(
+        "Vous n'encadrez pas la promotion de ce projet",
+      );
+    }
+  }
+
   /** Règle Lead #383 : seul un formateur/admin peut noter (appliqué via @Roles au niveau du contrôleur). */
   async noter(
     soumissionId: string,
     dto: NoterSoumissionDto,
+    currentUser?: { sub: string; role: Role },
   ): Promise<Soumission> {
     const soumission = await this.soumissionRepository.findOne({
       where: { id: soumissionId },
-      relations: { projet: true, apprenant: true },
+      relations: { projet: { promotion: true }, apprenant: true },
     });
     if (!soumission) {
       throw new NotFoundException(`Soumission ${soumissionId} non trouvée`);
     }
+    this.assertFormateurGereProjet(soumission.projet, currentUser);
     soumission.note = dto.note;
     soumission.feedback = dto.feedback ?? null;
     const saved = await this.soumissionRepository.save(soumission);

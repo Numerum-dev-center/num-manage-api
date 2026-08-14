@@ -97,7 +97,10 @@ export class ProjetsService {
     return projet;
   }
 
-  async findAllForManager(includeArchived = false): Promise<ProjetAvecStats[]> {
+  async findAllForManager(
+    includeArchived = false,
+    currentUser?: { sub: string; role: Role },
+  ): Promise<ProjetAvecStats[]> {
     const projets = await this.projetRepository.find({
       where: includeArchived ? {} : { isArchived: false },
       relations: {
@@ -109,11 +112,28 @@ export class ProjetsService {
       order: { createdAt: 'DESC' },
     });
 
-    return projets.map((projet) => this.withStats(projet));
+    // Un FORMATEUR ne doit voir que les projets des promotions qu'il
+    // encadre — sinon la liste fuit les titres/descriptions/effectifs de
+    // toutes les promotions à tous les formateurs (les actions détaillées
+    // sont déjà bloquées par assertFormateurCanManage, mais la liste, elle,
+    // n'était pas filtrée).
+    const visibles =
+      currentUser?.role === Role.FORMATEUR
+        ? projets.filter(
+            (projet) => projet.promotion?.formateurId === currentUser.sub,
+          )
+        : projets;
+
+    return visibles.map((projet) => this.withStats(projet));
   }
 
-  async update(id: string, dto: UpdateProjetDto): Promise<Projet> {
-    await this.findOne(id);
+  async update(
+    id: string,
+    dto: UpdateProjetDto,
+    currentUser?: { sub: string; role: Role },
+  ): Promise<Projet> {
+    const projet = await this.findOne(id);
+    this.assertFormateurCanManage(projet.promotion, currentUser);
     await this.projetRepository.update(id, {
       ...dto,
       dateLimite: dto.dateLimite ? new Date(dto.dateLimite) : undefined,
@@ -121,24 +141,39 @@ export class ProjetsService {
     return this.findOne(id);
   }
 
-  async archive(id: string): Promise<Projet> {
+  async archive(
+    id: string,
+    currentUser?: { sub: string; role: Role },
+  ): Promise<Projet> {
     const projet = await this.findOne(id);
+    this.assertFormateurCanManage(projet.promotion, currentUser);
     projet.isArchived = true;
     return this.projetRepository.save(projet);
   }
 
-  async unarchive(id: string): Promise<Projet> {
+  async unarchive(
+    id: string,
+    currentUser?: { sub: string; role: Role },
+  ): Promise<Projet> {
     const projet = await this.findOne(id);
+    this.assertFormateurCanManage(projet.promotion, currentUser);
     projet.isArchived = false;
     return this.projetRepository.save(projet);
   }
 
-  async remove(id: string): Promise<void> {
+  async remove(
+    id: string,
+    currentUser?: { sub: string; role: Role },
+  ): Promise<void> {
     const projet = await this.findOne(id);
+    this.assertFormateurCanManage(projet.promotion, currentUser);
     await this.projetRepository.remove(projet);
   }
 
-  async findOneForManager(id: string): Promise<ProjetAvecStats> {
+  async findOneForManager(
+    id: string,
+    currentUser?: { sub: string; role: Role },
+  ): Promise<ProjetAvecStats> {
     const projet = await this.projetRepository.findOne({
       where: { id },
       relations: {
@@ -151,7 +186,43 @@ export class ProjetsService {
     if (!projet) {
       throw new NotFoundException(`Projet ${id} non trouvé`);
     }
+    this.assertFormateurCanManage(projet.promotion, currentUser);
     return this.withStats(projet);
+  }
+
+  /**
+   * Un FORMATEUR ne peut lire/gérer que les projets des promotions qu'il
+   * encadre (promotion.formateurId). Un SUPER_ADMIN n'est jamais restreint.
+   * Sans currentUser (défaut), aucune restriction n'est appliquée.
+   */
+  private assertFormateurCanManage(
+    promotion: Promotion | null | undefined,
+    currentUser?: { sub: string; role: Role },
+  ): void {
+    if (
+      currentUser?.role === Role.FORMATEUR &&
+      promotion?.formateurId !== currentUser.sub
+    ) {
+      throw new ForbiddenException(
+        "Vous n'encadrez pas la promotion de ce projet",
+      );
+    }
+  }
+
+  /** Charge le projet (avec sa promotion) puis vérifie l'accès formateur. */
+  private async assertFormateurGereProjet(
+    projetId: string,
+    currentUser?: { sub: string; role: Role },
+  ): Promise<Projet> {
+    const projet = await this.projetRepository.findOne({
+      where: { id: projetId },
+      relations: { promotion: true },
+    });
+    if (!projet) {
+      throw new NotFoundException(`Projet ${projetId} non trouvé`);
+    }
+    this.assertFormateurCanManage(projet.promotion, currentUser);
+    return projet;
   }
 
   private withStats(projet: Projet): ProjetAvecStats {
@@ -202,7 +273,9 @@ export class ProjetsService {
     if (postes.length === 0) {
       return [];
     }
-    const posteParProjet = new Map(postes.map((p) => [p.projetId, p.poste ?? null]));
+    const posteParProjet = new Map(
+      postes.map((p) => [p.projetId, p.poste ?? null]),
+    );
 
     const projets = await this.projetRepository.find({
       where: { id: In(postes.map((p) => p.projetId)), isArchived: false },
@@ -266,13 +339,19 @@ export class ProjetsService {
    * Un projet ne cible plus toute la promotion par défaut : c'est cette
    * action (formateur) qui rend l'apprenant éligible à soumettre.
    */
-  async addApprenant(projetId: string, apprenantId: string): Promise<ProjetPoste> {
+  async addApprenant(
+    projetId: string,
+    apprenantId: string,
+    currentUser?: { sub: string; role: Role },
+  ): Promise<ProjetPoste> {
     const projet = await this.projetRepository.findOne({
       where: { id: projetId },
+      relations: { promotion: true },
     });
     if (!projet) {
       throw new NotFoundException(`Projet ${projetId} non trouvé`);
     }
+    this.assertFormateurCanManage(projet.promotion, currentUser);
     if (projet.isArchived) {
       throw new BadRequestException(
         'Impossible d’affecter un apprenant à un projet archivé',
@@ -312,17 +391,33 @@ export class ProjetsService {
     return saved;
   }
 
-  /** Retire un apprenant du roster du projet. */
+  /**
+   * Retire un apprenant du roster du projet. Interdit si l'apprenant a déjà
+   * une soumission sur ce projet : la retirer désynchroniserait les
+   * statistiques (totalApprenants/totalSoumissions/totalEvaluees) et
+   * masquerait sa soumission (potentiellement déjà notée) côté apprenant
+   * tout en la laissant visible/modifiable côté formateur.
+   */
   async removeApprenantFromProjet(
     projetId: string,
     apprenantId: string,
+    currentUser?: { sub: string; role: Role },
   ): Promise<void> {
+    await this.assertFormateurGereProjet(projetId, currentUser);
     const entry = await this.projetPosteRepository.findOne({
       where: { projetId, apprenantId },
     });
     if (!entry) {
       throw new NotFoundException(
         `Apprenant ${apprenantId} non affecté à ce projet`,
+      );
+    }
+    const soumission = await this.soumissionRepository.findOne({
+      where: { projetId, apprenantId },
+    });
+    if (soumission) {
+      throw new ForbiddenException(
+        'Impossible de retirer cet apprenant : il a déjà une soumission sur ce projet',
       );
     }
     await this.projetPosteRepository.remove(entry);
@@ -337,7 +432,14 @@ export class ProjetsService {
     projetId: string,
     apprenantId: string,
     poste: PosteProjet,
+    currentUser?: { sub: string; role: Role },
   ): Promise<ProjetPoste> {
+    // Uniquement pertinent quand appelé par un formateur (endpoint admin) ;
+    // l'apprenant qui choisit son propre poste (endpoint self-service) ne
+    // déclenche pas cette vérification et ne coûte donc pas de requête en plus.
+    if (currentUser?.role === Role.FORMATEUR) {
+      await this.assertFormateurGereProjet(projetId, currentUser);
+    }
     const entry = await this.projetPosteRepository.findOne({
       where: { projetId, apprenantId },
     });
@@ -351,13 +453,11 @@ export class ProjetsService {
   }
 
   /** Roster du projet : uniquement les apprenants explicitement affectés. */
-  async findPostesForProjet(projetId: string): Promise<ApprenantAvecPoste[]> {
-    const projet = await this.projetRepository.findOne({
-      where: { id: projetId },
-    });
-    if (!projet) {
-      throw new NotFoundException(`Projet ${projetId} non trouvé`);
-    }
+  async findPostesForProjet(
+    projetId: string,
+    currentUser?: { sub: string; role: Role },
+  ): Promise<ApprenantAvecPoste[]> {
+    await this.assertFormateurGereProjet(projetId, currentUser);
 
     const postes = await this.projetPosteRepository.find({
       where: { projetId },
@@ -377,7 +477,10 @@ export class ProjetsService {
   }
 
   /** Apprenants de la promotion du projet pas encore affectés (pour le picker "ajouter"). */
-  async findApprenantsDisponibles(projetId: string): Promise<ApprenantResume[]> {
+  async findApprenantsDisponibles(
+    projetId: string,
+    currentUser?: { sub: string; role: Role },
+  ): Promise<ApprenantResume[]> {
     const projet = await this.projetRepository.findOne({
       where: { id: projetId },
       relations: { promotion: { apprenants: true } },
@@ -385,6 +488,7 @@ export class ProjetsService {
     if (!projet) {
       throw new NotFoundException(`Projet ${projetId} non trouvé`);
     }
+    this.assertFormateurCanManage(projet.promotion, currentUser);
 
     const postes = await this.projetPosteRepository.find({
       where: { projetId },

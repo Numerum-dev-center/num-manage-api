@@ -3,4 +3,5 @@ export enum NotificationType {
   PROJET_NOTE = 'projet_note',
   AFFECTATION_PROMOTION = 'affectation_promotion',
   AFFECTATION_PROJET = 'affectation_projet',
+  NOUVELLE_RESSOURCE = 'nouvelle_ressource',
 }

@@ -91,8 +91,11 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Déconnexion' })
-  logout(@Res({ passthrough: true }) res: Response) {
-    this.authService.logout(res);
+  async logout(
+    @CurrentUser() currentUser: { sub: string },
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    await this.authService.logout(currentUser.sub, res);
     return { message: 'Déconnecté avec succès' };
   }
 }

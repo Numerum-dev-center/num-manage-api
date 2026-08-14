@@ -21,6 +21,8 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { Role } from '../common/enums/role.enum';
+import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { CurrentUserPayload } from './promotions.service';
 
 @ApiTags('promotions')
 @Controller('promotions')
@@ -43,14 +45,21 @@ export class PromotionsController {
   @ApiOperation({ summary: 'Récupérer toutes les promotions' })
   async findAll(
     @Query('includeArchived') includeArchived?: string,
+    @CurrentUser() currentUser?: CurrentUserPayload,
   ): Promise<Promotion[]> {
-    return this.promotionsService.findAll(includeArchived === 'true');
+    return this.promotionsService.findAll(
+      includeArchived === 'true',
+      currentUser,
+    );
   }
 
   @Get(':id')
   @ApiOperation({ summary: 'Récupérer une promotion par ID' })
-  async findOne(@Param('id') id: string): Promise<Promotion> {
-    return this.promotionsService.findOne(id);
+  async findOne(
+    @Param('id') id: string,
+    @CurrentUser() currentUser?: CurrentUserPayload,
+  ): Promise<Promotion> {
+    return this.promotionsService.findOne(id, currentUser);
   }
 
   @Patch(':id')
@@ -58,20 +67,27 @@ export class PromotionsController {
   async update(
     @Param('id') id: string,
     @Body() updatePromotionDto: UpdatePromotionDto,
+    @CurrentUser() currentUser: CurrentUserPayload,
   ): Promise<Promotion> {
-    return this.promotionsService.update(id, updatePromotionDto);
+    return this.promotionsService.update(id, updatePromotionDto, currentUser);
   }
 
   @Patch(':id/archive')
   @ApiOperation({ summary: 'Archiver une promotion' })
-  async archive(@Param('id') id: string): Promise<Promotion> {
-    return this.promotionsService.archive(id);
+  async archive(
+    @Param('id') id: string,
+    @CurrentUser() currentUser: CurrentUserPayload,
+  ): Promise<Promotion> {
+    return this.promotionsService.archive(id, currentUser);
   }
 
   @Patch(':id/unarchive')
   @ApiOperation({ summary: 'Réactiver une promotion archivée' })
-  async unarchive(@Param('id') id: string): Promise<Promotion> {
-    return this.promotionsService.unarchive(id);
+  async unarchive(
+    @Param('id') id: string,
+    @CurrentUser() currentUser: CurrentUserPayload,
+  ): Promise<Promotion> {
+    return this.promotionsService.unarchive(id, currentUser);
   }
 
   @Patch(':id/apprenants')
@@ -79,8 +95,13 @@ export class PromotionsController {
   async assignApprenants(
     @Param('id') id: string,
     @Body() assignApprenantsDto: AssignApprenantsDto,
+    @CurrentUser() currentUser: CurrentUserPayload,
   ): Promise<Promotion> {
-    return this.promotionsService.assignApprenants(id, assignApprenantsDto);
+    return this.promotionsService.assignApprenants(
+      id,
+      assignApprenantsDto,
+      currentUser,
+    );
   }
 
   @Delete(':id/apprenants/:userId')
@@ -88,7 +109,8 @@ export class PromotionsController {
   async removeApprenant(
     @Param('id') id: string,
     @Param('userId') userId: string,
+    @CurrentUser() currentUser: CurrentUserPayload,
   ): Promise<Promotion> {
-    return this.promotionsService.removeApprenant(id, userId);
+    return this.promotionsService.removeApprenant(id, userId, currentUser);
   }
 }

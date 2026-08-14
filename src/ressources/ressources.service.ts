@@ -13,6 +13,8 @@ import { User } from '../users/entities/user.entity';
 import { Role } from '../common/enums/role.enum';
 import { CreateRessourceDto } from './dto/create-ressource.dto';
 import { RessourceType } from './enums/ressource-type.enum';
+import { NotificationsService } from '../notifications/notifications.service';
+import { NotificationType } from '../common/enums/notification-type.enum';
 
 export interface CurrentUserPayload {
   sub: string;
@@ -28,6 +30,7 @@ export class RessourcesService {
     private readonly promotionRepository: Repository<Promotion>,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   async create(
@@ -71,7 +74,24 @@ export class RessourcesService {
           promotionId: dto.promotionId,
           uploadedById,
         });
-    return this.ressourceRepository.save(ressource);
+    const saved = await this.ressourceRepository.save(ressource);
+
+    const apprenants = await this.userRepository.find({
+      where: {
+        promotionId: dto.promotionId,
+        role: Role.APPRENANT,
+        isDeleted: false,
+      },
+    });
+    await this.notificationsService.notifyMany(
+      apprenants.map((a) => a.id),
+      NotificationType.NOUVELLE_RESSOURCE,
+      'Nouvelle ressource',
+      saved.title,
+      '/dashboard/student/ressources',
+    );
+
+    return saved;
   }
 
   async findAllForManager(

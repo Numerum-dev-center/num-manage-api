@@ -1,11 +1,15 @@
 import {
   BadRequestException,
   Body,
+  CallHandler,
   Controller,
   Delete,
+  ExecutionContext,
   Get,
   HttpCode,
   HttpStatus,
+  Injectable,
+  NestInterceptor,
   Param,
   Post,
   Query,
@@ -21,7 +25,10 @@ import {
   ApiOperation,
   ApiTags,
 } from '@nestjs/swagger';
-import type { Response } from 'express';
+import type { Request, Response } from 'express';
+import { promises as fsPromises } from 'fs';
+import { Observable, throwError } from 'rxjs';
+import { catchError } from 'rxjs/operators';
 import { RessourcesService } from './ressources.service';
 import { ressourcesMulterOptions } from './ressources.multer-options';
 import { CreateRessourceDto } from './dto/create-ressource.dto';
@@ -33,6 +40,32 @@ import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { Role } from '../common/enums/role.enum';
 import { RessourceType } from './enums/ressource-type.enum';
 
+/**
+ * Supprime le fichier déjà écrit sur disque par FileInterceptor (Multer)
+ * lorsque le reste de la requête échoue APRÈS l'upload physique : validation
+ * du DTO (ValidationPipe, ex. promotionId invalide) ou vérification manuelle
+ * du contrôleur (fichier + url fournis simultanément). Sans cela, ces échecs
+ * laissent un fichier orphelin dans uploads/ressources/ (jamais référencé en
+ * base, jamais nettoyé) — voir RessourcesService.create() qui gère déjà le
+ * nettoyage pour le cas "promotion introuvable".
+ */
+@Injectable()
+class CleanupUploadOnErrorInterceptor implements NestInterceptor {
+  intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
+    return next.handle().pipe(
+      catchError((err: unknown) => {
+        const req = context
+          .switchToHttp()
+          .getRequest<Request & { file?: Express.Multer.File }>();
+        if (req.file?.path) {
+          fsPromises.unlink(req.file.path).catch(() => undefined);
+        }
+        return throwError(() => err as Error);
+      }),
+    );
+  }
+}
+
 @ApiTags('ressources')
 @Controller('ressources')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -43,7 +76,10 @@ export class RessourcesController {
   @Post()
   @Roles(Role.SUPER_ADMIN, Role.FORMATEUR)
   @HttpCode(HttpStatus.CREATED)
-  @UseInterceptors(FileInterceptor('file', ressourcesMulterOptions))
+  @UseInterceptors(
+    FileInterceptor('file', ressourcesMulterOptions),
+    CleanupUploadOnErrorInterceptor,
+  )
   @ApiConsumes('multipart/form-data')
   @ApiOperation({
     summary:

@@ -31,9 +31,9 @@ export class AnnoncesController {
   @ApiOperation({ summary: 'Publier une annonce ciblée sur une promotion' })
   async create(
     @Body() dto: CreateAnnonceDto,
-    @CurrentUser() currentUser: { sub: string },
+    @CurrentUser() currentUser: { sub: string; role: Role },
   ): Promise<Annonce> {
-    return this.annoncesService.create(dto, currentUser.sub);
+    return this.annoncesService.create(dto, currentUser);
   }
 
   @Get()

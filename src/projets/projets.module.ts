@@ -14,7 +14,13 @@ import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Projet, Soumission, ProjetPoste, Promotion, User]),
+    TypeOrmModule.forFeature([
+      Projet,
+      Soumission,
+      ProjetPoste,
+      Promotion,
+      User,
+    ]),
     NotificationsModule,
   ],
   controllers: [

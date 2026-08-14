@@ -44,6 +44,13 @@ export class User {
   @Column({ type: 'boolean', default: true })
   isActive!: boolean;
 
+  // Incrémenté à chaque logout() pour révoquer tous les refresh tokens émis
+  // avant cet instant : refresh() compare la version embarquée dans le JWT à
+  // celle-ci et rejette le token si elles ne correspondent plus.
+  @Exclude()
+  @Column({ type: 'int', default: 0 })
+  refreshTokenVersion!: number;
+
   @Column({ type: 'boolean', default: false })
   isDeleted!: boolean;
 

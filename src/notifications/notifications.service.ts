@@ -42,10 +42,15 @@ export class NotificationsService {
   }
 
   async findAllForUser(userId: string): Promise<Notification[]> {
+    // La liste doit toujours couvrir au moins toutes les notifications non lues :
+    // sinon le compteur unread-count (non plafonné) peut dépasser ce qui est
+    // réellement affiché, et "tout marquer comme lu" ferait disparaître
+    // silencieusement des notifications jamais vues par l'utilisateur.
+    const unreadCount = await this.countUnread(userId);
     return this.notificationRepository.find({
       where: { recipientId: userId },
       order: { createdAt: 'DESC' },
-      take: 50,
+      take: Math.max(50, unreadCount),
     });
   }
 

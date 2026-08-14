@@ -102,10 +102,11 @@ export class AuthService {
     if (!refreshSecret) {
       throw new Error('JWT_REFRESH_SECRET must be defined');
     }
-    const payload = { sub: user.id };
+    const payload = { sub: user.id, tv: user.refreshTokenVersion };
     return this.jwtService.sign(payload, {
       secret: refreshSecret,
-      expiresIn: (this.configService.get<string>('JWT_REFRESH_EXPIRES_IN') ?? '7d') as any,
+      expiresIn: (this.configService.get<string>('JWT_REFRESH_EXPIRES_IN') ??
+        '7d') as any,
     });
   }
 
@@ -132,7 +133,8 @@ export class AuthService {
     }
 
     try {
-      const refreshSecret = this.configService.get<string>('JWT_REFRESH_SECRET');
+      const refreshSecret =
+        this.configService.get<string>('JWT_REFRESH_SECRET');
       if (!refreshSecret) {
         throw new UnauthorizedException('Refresh secret non défini');
       }
@@ -145,6 +147,15 @@ export class AuthService {
       });
       if (!user) throw new UnauthorizedException('Utilisateur introuvable');
 
+      // Un logout() incrémente refreshTokenVersion : un refresh token émis
+      // avant cette déconnexion porte encore l'ancienne version et est donc
+      // rejeté ici, même s'il n'a pas expiré — sans ça, un refresh token
+      // intercepté avant logout continuait de fonctionner indéfiniment après
+      // la déconnexion.
+      if (payload.tv !== user.refreshTokenVersion) {
+        throw new UnauthorizedException('Refresh token révoqué');
+      }
+
       const accessToken = this.generateAccessToken(user);
       return { accessToken };
     } catch {
@@ -152,7 +163,12 @@ export class AuthService {
     }
   }
 
-  logout(res: Response): void {
+  async logout(userId: string, res: Response): Promise<void> {
+    await this.userRepository.increment(
+      { id: userId },
+      'refreshTokenVersion',
+      1,
+    );
     res.clearCookie('refreshToken', AuthService.REFRESH_COOKIE_OPTIONS);
   }
 
@@ -199,7 +215,9 @@ export class AuthService {
     const refreshToken = this.generateRefreshToken(user);
     this.setRefreshTokenCookie(res, refreshToken);
 
-    const frontendUrl = this.configService.get<string>('FRONTEND_URL')?.split(',')[0];
+    const frontendUrl = this.configService
+      .get<string>('FRONTEND_URL')
+      ?.split(',')[0];
     if (!frontendUrl) {
       throw new UnauthorizedException('Frontend URL non configurée');
     }

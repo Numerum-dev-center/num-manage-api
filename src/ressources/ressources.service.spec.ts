@@ -8,6 +8,7 @@ import { Promotion } from '../promotions/entities/promotion.entity';
 import { User } from '../users/entities/user.entity';
 import { Role } from '../common/enums/role.enum';
 import { RessourceType } from './enums/ressource-type.enum';
+import { NotificationsService } from '../notifications/notifications.service';
 
 describe('RessourcesService', () => {
   let service: RessourcesService;
@@ -23,10 +24,16 @@ describe('RessourcesService', () => {
   };
   const mockUserRepository = {
     findOne: jest.fn(),
+    find: jest.fn(),
+  };
+  const mockNotificationsService = {
+    notify: jest.fn(),
+    notifyMany: jest.fn(),
   };
 
   beforeEach(async () => {
     jest.clearAllMocks();
+    mockUserRepository.find.mockResolvedValue([]);
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -43,6 +50,7 @@ describe('RessourcesService', () => {
           provide: getRepositoryToken(User),
           useValue: mockUserRepository,
         },
+        { provide: NotificationsService, useValue: mockNotificationsService },
       ],
     }).compile();
 

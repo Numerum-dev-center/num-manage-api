@@ -50,8 +50,12 @@ export class AdminProjetsController {
   })
   async findAll(
     @Query('includeArchived') includeArchived?: string,
+    @CurrentUser() currentUser?: { sub: string; role: Role },
   ): Promise<ProjetAvecStats[]> {
-    return this.projetsService.findAllForManager(includeArchived === 'true');
+    return this.projetsService.findAllForManager(
+      includeArchived === 'true',
+      currentUser,
+    );
   }
 
   @Get('creer')
@@ -77,8 +81,11 @@ export class AdminProjetsController {
 
   @Get(':id')
   @ApiOperation({ summary: 'Détails d’un projet avec statut agrégé' })
-  async findOne(@Param('id') id: string): Promise<ProjetAvecStats> {
-    return this.projetsService.findOneForManager(id);
+  async findOne(
+    @Param('id') id: string,
+    @CurrentUser() currentUser: { sub: string; role: Role },
+  ): Promise<ProjetAvecStats> {
+    return this.projetsService.findOneForManager(id, currentUser);
   }
 
   @Patch(':id')
@@ -86,54 +93,72 @@ export class AdminProjetsController {
   async update(
     @Param('id') id: string,
     @Body() dto: UpdateProjetDto,
+    @CurrentUser() currentUser: { sub: string; role: Role },
   ): Promise<Projet> {
-    return this.projetsService.update(id, dto);
+    return this.projetsService.update(id, dto, currentUser);
   }
 
   @Patch(':id/archive')
   @ApiOperation({ summary: 'Archiver un projet' })
-  async archive(@Param('id') id: string): Promise<Projet> {
-    return this.projetsService.archive(id);
+  async archive(
+    @Param('id') id: string,
+    @CurrentUser() currentUser: { sub: string; role: Role },
+  ): Promise<Projet> {
+    return this.projetsService.archive(id, currentUser);
   }
 
   @Patch(':id/unarchive')
   @ApiOperation({ summary: 'Réactiver un projet archivé' })
-  async unarchive(@Param('id') id: string): Promise<Projet> {
-    return this.projetsService.unarchive(id);
+  async unarchive(
+    @Param('id') id: string,
+    @CurrentUser() currentUser: { sub: string; role: Role },
+  ): Promise<Projet> {
+    return this.projetsService.unarchive(id, currentUser);
   }
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Supprimer un projet' })
-  async remove(@Param('id') id: string): Promise<void> {
-    return this.projetsService.remove(id);
+  async remove(
+    @Param('id') id: string,
+    @CurrentUser() currentUser: { sub: string; role: Role },
+  ): Promise<void> {
+    return this.projetsService.remove(id, currentUser);
   }
 
   @Get(':id/soumissions')
   @ApiOperation({ summary: "Lister les soumissions d'un projet (#390)" })
-  async findSoumissions(@Param('id') id: string): Promise<Soumission[]> {
-    return this.soumissionsService.findAllForProjet(id);
+  async findSoumissions(
+    @Param('id') id: string,
+    @CurrentUser() currentUser: { sub: string; role: Role },
+  ): Promise<Soumission[]> {
+    return this.soumissionsService.findAllForProjet(id, currentUser);
   }
 
   @Get(':id/postes')
   @ApiOperation({
-    summary: 'Lister le roster (apprenants affectés + poste éventuel) de ce projet',
+    summary:
+      'Lister le roster (apprenants affectés + poste éventuel) de ce projet',
   })
-  async findPostes(@Param('id') id: string): Promise<ApprenantAvecPoste[]> {
-    return this.projetsService.findPostesForProjet(id);
+  async findPostes(
+    @Param('id') id: string,
+    @CurrentUser() currentUser: { sub: string; role: Role },
+  ): Promise<ApprenantAvecPoste[]> {
+    return this.projetsService.findPostesForProjet(id, currentUser);
   }
 
   @Get(':id/apprenants-disponibles')
   @ApiOperation({
     summary:
-      "Lister les apprenants de la promotion pas encore affectés à ce projet",
+      'Lister les apprenants de la promotion pas encore affectés à ce projet',
   })
   async findApprenantsDisponibles(
     @Param('id') id: string,
+    @CurrentUser() currentUser: { sub: string; role: Role },
   ): Promise<
     Pick<User, 'id' | 'firstname' | 'lastname' | 'email' | 'specialite'>[]
   > {
-    return this.projetsService.findApprenantsDisponibles(id);
+    return this.projetsService.findApprenantsDisponibles(id, currentUser);
   }
 
   @Post(':id/apprenants/:apprenantId')
@@ -142,8 +167,9 @@ export class AdminProjetsController {
   async addApprenant(
     @Param('id') id: string,
     @Param('apprenantId') apprenantId: string,
+    @CurrentUser() currentUser: { sub: string; role: Role },
   ): Promise<ProjetPoste> {
-    return this.projetsService.addApprenant(id, apprenantId);
+    return this.projetsService.addApprenant(id, apprenantId, currentUser);
   }
 
   @Delete(':id/apprenants/:apprenantId')
@@ -152,8 +178,13 @@ export class AdminProjetsController {
   async removeApprenant(
     @Param('id') id: string,
     @Param('apprenantId') apprenantId: string,
+    @CurrentUser() currentUser: { sub: string; role: Role },
   ): Promise<void> {
-    return this.projetsService.removeApprenantFromProjet(id, apprenantId);
+    return this.projetsService.removeApprenantFromProjet(
+      id,
+      apprenantId,
+      currentUser,
+    );
   }
 
   @Patch(':id/postes/:apprenantId')
@@ -164,7 +195,13 @@ export class AdminProjetsController {
     @Param('id') id: string,
     @Param('apprenantId') apprenantId: string,
     @Body() dto: SetPosteDto,
+    @CurrentUser() currentUser: { sub: string; role: Role },
   ): Promise<ProjetPoste> {
-    return this.projetsService.setPoste(id, apprenantId, dto.poste);
+    return this.projetsService.setPoste(
+      id,
+      apprenantId,
+      dto.poste,
+      currentUser,
+    );
   }
 }

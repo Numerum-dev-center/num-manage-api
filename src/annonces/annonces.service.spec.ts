@@ -1,12 +1,17 @@
 // annonces.service.spec.ts
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
 import { AnnoncesService } from './annonces.service';
 import { Annonce } from './entities/annonce.entity';
 import { Promotion } from '../promotions/entities/promotion.entity';
 import { User } from '../users/entities/user.entity';
 import { NotificationsService } from '../notifications/notifications.service';
+import { Role } from '../common/enums/role.enum';
 
 describe('AnnoncesService', () => {
   let service: AnnoncesService;
@@ -64,7 +69,7 @@ describe('AnnoncesService', () => {
       await expect(
         service.create(
           { promotionId: 'inconnue', title: 'Titre', content: 'Contenu' },
-          'formateur-1',
+          { sub: 'formateur-1', role: Role.FORMATEUR },
         ),
       ).rejects.toBeInstanceOf(NotFoundException);
     });
@@ -78,13 +83,16 @@ describe('AnnoncesService', () => {
       await expect(
         service.create(
           { promotionId: 'promo-A', title: 'Titre', content: 'Contenu' },
-          'formateur-1',
+          { sub: 'formateur-1', role: Role.FORMATEUR },
         ),
       ).rejects.toBeInstanceOf(BadRequestException);
     });
 
     it('crée une annonce ciblée sur la promotion', async () => {
-      mockPromotionRepository.findOne.mockResolvedValue({ id: 'promo-A' });
+      mockPromotionRepository.findOne.mockResolvedValue({
+        id: 'promo-A',
+        formateurId: 'formateur-1',
+      });
       mockAnnonceRepository.create.mockImplementation((data: object) => data);
       mockAnnonceRepository.save.mockImplementation((data: object) =>
         Promise.resolve({ id: 'a1', ...data }),
@@ -92,7 +100,7 @@ describe('AnnoncesService', () => {
 
       const result = await service.create(
         { promotionId: 'promo-A', title: 'Titre', content: 'Contenu' },
-        'formateur-1',
+        { sub: 'formateur-1', role: Role.FORMATEUR },
       );
 
       expect(result).toMatchObject({
@@ -100,6 +108,42 @@ describe('AnnoncesService', () => {
         content: 'Contenu',
         promotionId: 'promo-A',
         createdById: 'formateur-1',
+      });
+    });
+
+    it("refuse qu'un formateur publie sur la promotion d'un autre formateur", async () => {
+      mockPromotionRepository.findOne.mockResolvedValue({
+        id: 'promo-A',
+        formateurId: 'formateur-1',
+      });
+
+      await expect(
+        service.create(
+          { promotionId: 'promo-A', title: 'Titre', content: 'Contenu' },
+          { sub: 'formateur-2', role: Role.FORMATEUR },
+        ),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+      expect(mockAnnonceRepository.save).not.toHaveBeenCalled();
+    });
+
+    it('autorise un SUPER_ADMIN à publier sur nimporte quelle promotion', async () => {
+      mockPromotionRepository.findOne.mockResolvedValue({
+        id: 'promo-A',
+        formateurId: 'formateur-1',
+      });
+      mockAnnonceRepository.create.mockImplementation((data: object) => data);
+      mockAnnonceRepository.save.mockImplementation((data: object) =>
+        Promise.resolve({ id: 'a1', ...data }),
+      );
+
+      const result = await service.create(
+        { promotionId: 'promo-A', title: 'Titre', content: 'Contenu' },
+        { sub: 'admin-1', role: Role.SUPER_ADMIN },
+      );
+
+      expect(result).toMatchObject({
+        promotionId: 'promo-A',
+        createdById: 'admin-1',
       });
     });
   });

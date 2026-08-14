@@ -21,7 +21,7 @@ import {
   ApiTags,
   ApiOperation,
 } from '@nestjs/swagger';
-import { UsersService } from './users.service';
+import { UsersService, CurrentUserPayload } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { User } from './entities/user.entity';
@@ -51,8 +51,10 @@ export class UsersController {
   @Roles(Role.SUPER_ADMIN, Role.FORMATEUR)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Récupérer tous les utilisateurs' })
-  async findAll(): Promise<User[]> {
-    return this.usersService.findAll();
+  async findAll(
+    @CurrentUser() currentUser: CurrentUserPayload,
+  ): Promise<User[]> {
+    return this.usersService.findAll(currentUser);
   }
 
   @Get(':id')
@@ -60,8 +62,11 @@ export class UsersController {
   @Roles(Role.SUPER_ADMIN, Role.FORMATEUR)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Récupérer un utilisateur par ID' })
-  async findOne(@Param('id') id: string): Promise<User> {
-    return this.usersService.findOne(id);
+  async findOne(
+    @Param('id') id: string,
+    @CurrentUser() currentUser: CurrentUserPayload,
+  ): Promise<User> {
+    return this.usersService.findOne(id, currentUser);
   }
 
   @Patch('me')

@@ -1,4 +1,10 @@
-import { IsOptional, IsString, IsUUID, IsUrl } from 'class-validator';
+import {
+  IsOptional,
+  IsString,
+  IsUUID,
+  IsUrl,
+  MaxLength,
+} from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class CreateRessourceDto {
@@ -17,6 +23,7 @@ export class CreateRessourceDto {
   })
   @IsOptional()
   @IsString()
+  @MaxLength(255)
   title?: string;
 
   @ApiProperty({

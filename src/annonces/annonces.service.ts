@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -25,7 +26,10 @@ export class AnnoncesService {
     private readonly notificationsService: NotificationsService,
   ) {}
 
-  async create(dto: CreateAnnonceDto, createdById: string): Promise<Annonce> {
+  async create(
+    dto: CreateAnnonceDto,
+    currentUser: { sub: string; role: Role },
+  ): Promise<Annonce> {
     const promotion = await this.promotionRepository.findOne({
       where: { id: dto.promotionId },
     });
@@ -37,12 +41,22 @@ export class AnnoncesService {
         'Impossible de publier une annonce sur une promotion archivée',
       );
     }
+    // Un FORMATEUR ne peut publier que sur les promotions qu'il encadre
+    // (promotion.formateurId). Un SUPER_ADMIN n'est jamais restreint.
+    if (
+      currentUser.role === Role.FORMATEUR &&
+      promotion.formateurId !== currentUser.sub
+    ) {
+      throw new ForbiddenException(
+        "Vous n'encadrez pas cette promotion, vous ne pouvez pas y publier d'annonce",
+      );
+    }
 
     const annonce = this.annonceRepository.create({
       title: dto.title,
       content: dto.content,
       promotionId: dto.promotionId,
-      createdById,
+      createdById: currentUser.sub,
     });
     const saved = await this.annonceRepository.save(annonce);
 

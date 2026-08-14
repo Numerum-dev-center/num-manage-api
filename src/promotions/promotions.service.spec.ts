@@ -2,7 +2,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { BadRequestException, ConflictException } from '@nestjs/common';
-import { PromotionsService } from './promotions.service';
+import { PromotionsService, CurrentUserPayload } from './promotions.service';
 import { Promotion } from './entities/promotion.entity';
 import { User } from '../users/entities/user.entity';
 import { Projet } from '../projets/entities/projet.entity';
@@ -11,6 +11,7 @@ import { NotificationsService } from '../notifications/notifications.service';
 
 describe('PromotionsService', () => {
   let service: PromotionsService;
+  const admin: CurrentUserPayload = { sub: 'admin1', role: Role.SUPER_ADMIN };
   const mockPromotionRepository = {
     create: jest.fn(),
     save: jest.fn(),
@@ -68,7 +69,7 @@ describe('PromotionsService', () => {
     });
 
     await expect(
-      service.assignApprenants('p1', { apprenantIds: ['u1'] }),
+      service.assignApprenants('p1', { apprenantIds: ['u1'] }, admin),
     ).rejects.toBeInstanceOf(BadRequestException);
   });
 
@@ -83,7 +84,7 @@ describe('PromotionsService', () => {
     ]);
 
     await expect(
-      service.assignApprenants('p1', { apprenantIds: ['u1'] }),
+      service.assignApprenants('p1', { apprenantIds: ['u1'] }, admin),
     ).rejects.toBeInstanceOf(BadRequestException);
   });
 
@@ -118,7 +119,7 @@ describe('PromotionsService', () => {
         .mockResolvedValueOnce({ id: 'p2', name: 'Promo B' }); // validateUniqueName
 
       await expect(
-        service.update('p1', { name: 'Promo B' }),
+        service.update('p1', { name: 'Promo B' }, admin),
       ).rejects.toBeInstanceOf(ConflictException);
     });
 
@@ -133,7 +134,7 @@ describe('PromotionsService', () => {
         }); // findOne(id) final
 
       await expect(
-        service.update('p1', { name: 'Promo A' }),
+        service.update('p1', { name: 'Promo A' }, admin),
       ).resolves.toBeDefined();
     });
   });
@@ -148,7 +149,7 @@ describe('PromotionsService', () => {
         Promise.resolve(data),
       );
 
-      const result = await service.unarchive('p1');
+      const result = await service.unarchive('p1', admin);
       expect(result).toMatchObject({ isArchived: false });
     });
   });

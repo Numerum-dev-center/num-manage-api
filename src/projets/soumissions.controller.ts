@@ -6,6 +6,7 @@ import { Soumission } from './entities/soumission.entity';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
+import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { Role } from '../common/enums/role.enum';
 
 @ApiTags('projets')
@@ -21,7 +22,8 @@ export class SoumissionsController {
   async noter(
     @Param('id') id: string,
     @Body() dto: NoterSoumissionDto,
+    @CurrentUser() currentUser: { sub: string; role: Role },
   ): Promise<Soumission> {
-    return this.soumissionsService.noter(id, dto);
+    return this.soumissionsService.noter(id, dto, currentUser);
   }
 }

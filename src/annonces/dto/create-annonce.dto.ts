@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsString, IsUUID } from 'class-validator';
+import { IsNotEmpty, IsString, IsUUID, MaxLength } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class CreateAnnonceDto {
@@ -12,6 +12,7 @@ export class CreateAnnonceDto {
   @ApiProperty({ example: 'Changement de salle - Semaine 3' })
   @IsNotEmpty()
   @IsString()
+  @MaxLength(255)
   title!: string;
 
   @ApiProperty({
