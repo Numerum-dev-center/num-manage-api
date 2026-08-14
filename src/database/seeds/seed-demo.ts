@@ -13,6 +13,7 @@ import { Ressource } from '../../ressources/entities/ressource.entity';
 import { RessourceType } from '../../ressources/enums/ressource-type.enum';
 import { Projet } from '../../projets/entities/projet.entity';
 import { Soumission } from '../../projets/entities/soumission.entity';
+import { ProjetPoste } from '../../projets/entities/projet-poste.entity';
 
 /**
  * Seed de démonstration complet : peuple toutes les tables avec un jeu de
@@ -170,6 +171,19 @@ async function findOrCreateProjet(
   return projetRepository.save(projet);
 }
 
+async function findOrCreateProjetPoste(
+  projetPosteRepository: Repository<ProjetPoste>,
+  data: { projetId: string; apprenantId: string },
+): Promise<void> {
+  const existing = await projetPosteRepository.findOne({
+    where: { projetId: data.projetId, apprenantId: data.apprenantId },
+  });
+  if (existing) {
+    return;
+  }
+  await projetPosteRepository.save(projetPosteRepository.create(data));
+}
+
 async function findOrCreateSoumission(
   soumissionRepository: Repository<Soumission>,
   data: {
@@ -221,6 +235,9 @@ async function seedDemo() {
   );
   const soumissionRepository = app.get<Repository<Soumission>>(
     getRepositoryToken(Soumission),
+  );
+  const projetPosteRepository = app.get<Repository<ProjetPoste>>(
+    getRepositoryToken(ProjetPoste),
   );
 
   const credentials: SeededAccount[] = [];
@@ -428,6 +445,15 @@ async function seedDemo() {
     projet: Projet,
     apprenantsCibles: User[],
   ) {
+    // Un projet ne cible plus automatiquement toute la promotion : chaque
+    // apprenant doit être explicitement affecté (roster) pour voir le
+    // projet, qu'il ait déjà soumis ou non.
+    for (const apprenant of apprenantsCibles) {
+      await findOrCreateProjetPoste(projetPosteRepository, {
+        projetId: projet.id,
+        apprenantId: apprenant.id,
+      });
+    }
     for (let i = 0; i < 4; i++) {
       await findOrCreateSoumission(soumissionRepository, {
         projetId: projet.id,
